@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { QRCodeCanvas } from 'qrcode.react'
 import { use } from 'react'
-import { Church } from '@/types'
+import { Church, Checkin } from '@/types'
 import { decodeChurchParam, encodeQRPayload } from '@/lib/encode'
 
 export default function QRPage({ params }: { params: Promise<{ encodedId: string }> }) {
@@ -21,20 +21,37 @@ export default function QRPage({ params }: { params: Promise<{ encodedId: string
     queryFn: () => fetch('/api/churches').then((r) => r.json()),
   })
 
+  const { data: phaseData } = useQuery<{ phase: string }>({
+    queryKey: ['phase'],
+    queryFn: () => fetch('/api/settings/phase').then((r) => r.json()),
+  })
+
+  const phase = phaseData?.phase
+
+  const { data: checkins = [], isSuccess: checkinsLoaded } = useQuery<Checkin[]>({
+    queryKey: ['checkins', phase],
+    queryFn: () => fetch(`/api/checkins?phase=${phase}`).then((r) => r.json()),
+    enabled: !!phase,
+    staleTime: 0,
+  })
+
+  const isCheckedIn = checkinsLoaded && checkins.some((c) => c.church_id === churchId)
+
   const church = churches.find((c) => c.id === churchId)
   const qrValue = churchId ? encodeQRPayload(churchId) : ''
 
+  // 체크인 완료 여부를 확인한 뒤에만 SSE 연결 (미완료 교회만)
   useEffect(() => {
-    if (!churchId) return
+    if (!churchId || !phase || !checkinsLoaded || isCheckedIn) return
     const es = new EventSource(`/api/stream/mobile?churchId=${churchId}`)
     es.onmessage = (e) => {
       if (e.data === 'SCANNED') {
         es.close()
-        router.push(`/checkin/${churchId}`)
+        router.push(`/checkin/${encodedId}`)
       }
     }
     return () => es.close()
-  }, [churchId, router])
+  }, [churchId, router, phase, checkinsLoaded, isCheckedIn])
 
   const handleDownload = () => {
     const qrCanvas = canvasWrapRef.current?.querySelector('canvas')
@@ -75,8 +92,12 @@ export default function QRPage({ params }: { params: Promise<{ encodedId: string
               QR 코드
             </h1>
           </div>
-          <span className="bg-brand text-white px-2 py-1 font-display font-bold text-[10px] tracking-widest uppercase mt-1">
-            ACTIVE
+          <span className={`px-2 py-1 font-display font-bold text-[10px] tracking-widest uppercase mt-1 ${
+            isCheckedIn
+              ? 'bg-foreground text-background'
+              : 'bg-brand text-white'
+          }`}>
+            {isCheckedIn ? 'DONE' : 'ACTIVE'}
           </span>
         </header>
 
@@ -87,12 +108,23 @@ export default function QRPage({ params }: { params: Promise<{ encodedId: string
               선택된 교회
             </p>
             <p className="text-lg font-bold mt-1">{church.name}</p>
+            {church.address && (
+              <p className="text-sm text-muted-foreground mt-0.5">{church.address}</p>
+            )}
+          </div>
+        )}
+
+        {/* 체크인 완료 배너 */}
+        {isCheckedIn && (
+          <div className="px-6 py-3 bg-foreground/5 border-b border-foreground flex items-center gap-2 flex-shrink-0">
+            <span className="size-2 bg-foreground flex-shrink-0" />
+            <span className="font-display font-bold text-sm">체크인이 완료된 교회입니다.</span>
           </div>
         )}
 
         {/* QR 코드 */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 bg-muted/40 overflow-hidden">
-          <div ref={canvasWrapRef} className="p-6 bg-white border-2 border-foreground">
+          <div ref={canvasWrapRef} className={`p-6 bg-white border-2 ${isCheckedIn ? 'border-foreground/30 opacity-50' : 'border-foreground'}`}>
             <QRCodeCanvas
               value={qrValue}
               size={240}
@@ -101,7 +133,9 @@ export default function QRPage({ params }: { params: Promise<{ encodedId: string
             />
           </div>
           <p className="mt-6 text-center text-sm text-muted-foreground max-w-xs leading-relaxed">
-            카메라에 가져다 대세요.<br />스캔 후 자동으로 다음 단계로 이동합니다.
+            {isCheckedIn
+              ? '체크인이 완료되었습니다.'
+              : '카메라에 가져다 대세요.\n스캔 후 자동으로 다음 단계로 이동합니다.'}
           </p>
         </div>
 

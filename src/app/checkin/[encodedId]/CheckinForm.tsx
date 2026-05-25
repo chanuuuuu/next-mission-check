@@ -21,8 +21,8 @@ export function CheckinForm({ church, phaseCode }: Props) {
 
   const isMorning = phaseCode.endsWith('A')
   const greeting = isMorning
-    ? `안녕하세요 ${church.name} 선교대원 여러분,\n오늘도 은혜로운 선교가 되기를 소망합니다.`
-    : `안녕하세요 ${church.name} 선교대원 여러분,\n오늘도 너무 고생하셨습니다.`
+    ? `${church.name} 선교대원 여러분,\n오늘도 은혜로운 선교가 되기를 소망합니다.`
+    : `${church.name} 선교대원 여러분,\n오늘도 너무 고생하셨습니다.`
 
   const canSubmit = allArrived && Number(headcount) >= 1
 
@@ -45,29 +45,22 @@ export function CheckinForm({ church, phaseCode }: Props) {
     onSuccess: () => setSubmitted(true),
   })
 
-  // 성공 후 카운트다운 → QR 페이지 리다이렉트
   useEffect(() => {
     if (!submitted) return
-    const target = `/generate/${encodeChurchParam(church.name, church.id)}`
-    const interval = setInterval(() => {
-      setCountdown((n) => {
-        if (n <= 1) {
-          clearInterval(interval)
-          router.push(target)
-          return 0
-        }
-        return n - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [submitted, church.name, church.id, router])
+    if (countdown === 0) {
+      router.push(`/generate/${encodeChurchParam(church.name, church.id)}`)
+      return
+    }
+    const timer = setTimeout(() => setCountdown((n) => n - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [submitted, countdown, church.name, church.id, router])
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background flex justify-center">
-        <div className="w-full max-w-[480px] min-h-screen flex flex-col items-center justify-center px-8 text-center animate-[var(--animate-slide-up)]">
-          <div className="size-16 border-2 border-brand grid place-items-center mb-6">
-            <span className="text-2xl text-brand">✓</span>
+      <div className="h-screen bg-background flex justify-center overflow-hidden">
+        <div className="w-full max-w-[480px] h-full flex flex-col items-center justify-center px-8 text-center animate-[var(--animate-slide-up)]">
+          <div className="size-14 border-2 border-brand grid place-items-center mb-5">
+            <span className="text-xl text-brand">✓</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">체크인 완료!</h1>
           <p className="text-muted-foreground mt-3 text-sm">
@@ -85,30 +78,29 @@ export function CheckinForm({ church, phaseCode }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex justify-center">
-      <div className="w-full max-w-[480px] bg-background border-x border-foreground min-h-screen flex flex-col animate-[var(--animate-slide-up)]">
+    <div className="h-screen bg-background flex justify-center overflow-hidden">
+      <div className="w-full max-w-[480px] bg-background border-x border-foreground h-full flex flex-col animate-[var(--animate-slide-up)]">
 
         {/* 인사말 헤더 */}
-        <header className="p-8 bg-foreground text-background">
+        <header className="p-8 bg-foreground text-background flex-shrink-0">
           <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase opacity-60">
             셀프 체크인 · STEP 3
           </p>
-          <h1 className="text-2xl font-bold tracking-tight mt-3 leading-snug text-balance whitespace-pre-line">
+          <h1 className="text-xl font-bold tracking-tight mt-3 leading-snug whitespace-pre-line">
             {greeting}
           </h1>
-          <p className="mt-3 text-sm opacity-70">셀프 체크인을 진행하겠습니다.</p>
         </header>
 
         {/* 폼 */}
         <form
           onSubmit={(e) => { e.preventDefault(); mutation.mutate() }}
-          className="flex-1 flex flex-col"
+          className="flex-1 flex flex-col overflow-hidden"
         >
-          <div className="px-8 py-8 space-y-10 flex-1">
+          <div className="px-6 py-8 space-y-8 flex-1 overflow-y-auto">
 
             {/* 모든 인원 도착 여부 */}
             <div>
-              <label className="block font-display text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              <label className="block font-display text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
                 모든 인원 도착 여부
               </label>
               <button
@@ -133,7 +125,7 @@ export function CheckinForm({ church, phaseCode }: Props) {
 
             {/* 현재 인원 수 */}
             <div>
-              <label className="block font-display text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              <label className="block font-display text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
                 현재 인원 수
               </label>
               <input
@@ -142,42 +134,42 @@ export function CheckinForm({ church, phaseCode }: Props) {
                 value={headcount}
                 onChange={(e) => setHeadcount(e.target.value.replace(/\D/g, ''))}
                 placeholder="0"
-                className="w-full border-b-2 border-foreground py-3 text-4xl font-display font-bold outline-none bg-transparent placeholder:text-muted-foreground/40"
+                className="w-full border-b-2 border-foreground py-2 text-3xl font-display font-bold outline-none bg-transparent placeholder:text-muted-foreground/40"
               />
-              <p className="text-sm text-muted-foreground mt-2">숫자만 입력</p>
+              <p className="text-xs text-muted-foreground mt-1">숫자만 입력</p>
             </div>
 
             {/* 추가 보고 사항 */}
             <div>
-              <label className="block font-display text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              <label className="block font-display text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
                 추가 보고 사항
               </label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="추가적으로 보고가 필요한 사항이 있나요?"
-                rows={4}
-                className="w-full border border-foreground/20 focus:border-foreground p-4 outline-none resize-none text-sm bg-transparent transition-colors"
+                rows={3}
+                className="w-full border border-foreground/20 focus:border-foreground p-3 outline-none resize-none text-sm bg-transparent transition-colors"
               />
             </div>
           </div>
 
           {/* 완료 버튼 */}
-          <div className="px-8 py-6 border-t border-foreground sticky bottom-0 bg-background">
+          <div className="px-6 py-4 border-t border-foreground bg-background flex-shrink-0">
             {mutation.isError && (
-              <p className="text-sm text-destructive mb-3 text-center font-bold">
+              <p className="text-sm text-destructive mb-2 text-center font-bold">
                 오류가 발생했습니다. 다시 시도해주세요.
               </p>
             )}
             {!canSubmit && !mutation.isError && (
-              <p className="text-xs text-muted-foreground mb-3 text-center">
+              <p className="text-xs text-muted-foreground mb-2 text-center">
                 {!allArrived ? '모든 인원 도착 여부를 확인해주세요.' : '인원 수를 입력해주세요.'}
               </p>
             )}
             <button
               type="submit"
               disabled={!canSubmit || mutation.isPending}
-              className="w-full bg-brand text-white py-5 font-display font-bold uppercase tracking-widest text-base hover:brightness-110 transition-all disabled:opacity-40"
+              className="w-full bg-brand text-white py-3 font-display font-bold uppercase tracking-widest text-sm hover:brightness-110 transition-all disabled:opacity-40"
             >
               {mutation.isPending ? '처리 중...' : '완료'}
             </button>

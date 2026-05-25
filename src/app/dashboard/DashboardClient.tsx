@@ -1,65 +1,72 @@
-'use client'
+"use client";
 
-import { useEffect } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Church, Checkin } from '@/types'
-import { PHASE_LABELS, PhaseCode } from '@/types'
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Church, Checkin } from "@/types";
+import { PHASE_LABELS, PhaseCode } from "@/types";
 
 interface Props {
-  initialChurches: Church[]
-  initialCheckins: Checkin[]
-  initialPhase: string
+  initialChurches: Church[];
+  initialCheckins: Checkin[];
+  initialPhase: string;
 }
 
-export function DashboardClient({ initialChurches, initialCheckins, initialPhase }: Props) {
-  const queryClient = useQueryClient()
+export function DashboardClient({
+  initialChurches,
+  initialCheckins,
+  initialPhase,
+}: Props) {
+  const queryClient = useQueryClient();
 
   const { data: churches = initialChurches } = useQuery<Church[]>({
-    queryKey: ['churches'],
-    queryFn: () => fetch('/api/churches').then((r) => r.json()),
+    queryKey: ["churches"],
+    queryFn: () => fetch("/api/churches").then((r) => r.json()),
     initialData: initialChurches,
-  })
+  });
 
   const { data: phaseData } = useQuery<{ phase: string; label: string }>({
-    queryKey: ['phase'],
-    queryFn: () => fetch('/api/settings/phase').then((r) => r.json()),
-    initialData: { phase: initialPhase, label: PHASE_LABELS[initialPhase as PhaseCode] },
-  })
+    queryKey: ["phase"],
+    queryFn: () => fetch("/api/settings/phase").then((r) => r.json()),
+    initialData: {
+      phase: initialPhase,
+      label: PHASE_LABELS[initialPhase as PhaseCode],
+    },
+  });
 
-  const phase = phaseData?.phase ?? initialPhase
+  const phase = phaseData?.phase ?? initialPhase;
 
   const { data: checkins = initialCheckins } = useQuery<Checkin[]>({
-    queryKey: ['checkins', phase],
+    queryKey: ["checkins", phase],
     queryFn: () => fetch(`/api/checkins?phase=${phase}`).then((r) => r.json()),
     initialData: initialCheckins,
-  })
+  });
 
   useEffect(() => {
-    const es = new EventSource('/api/stream/dashboard')
+    const es = new EventSource("/api/stream/dashboard");
     es.onmessage = (e) => {
-      if (e.data === 'REFRESH') {
-        queryClient.invalidateQueries({ queryKey: ['checkins'] })
-        queryClient.invalidateQueries({ queryKey: ['phase'] })
+      if (e.data === "REFRESH") {
+        queryClient.invalidateQueries({ queryKey: ["checkins"] });
+        queryClient.invalidateQueries({ queryKey: ["phase"] });
       }
-    }
-    return () => es.close()
-  }, [queryClient])
+    };
+    return () => es.close();
+  }, [queryClient]);
 
-  const arrivedIds = new Set(checkins.map((c) => c.church_id))
-  const pending = churches.filter((c) => !arrivedIds.has(c.id))
+  const arrivedIds = new Set(checkins.map((c) => c.church_id));
+  const pending = churches.filter((c) => !arrivedIds.has(c.id));
 
   // 최신순 정렬
   const arrivedSorted = [...checkins].sort(
-    (a, b) => new Date(b.checked_in_at).getTime() - new Date(a.checked_in_at).getTime()
-  )
-  const top5 = arrivedSorted.slice(0, 5)
-  const rest = arrivedSorted.slice(5)
+    (a, b) =>
+      new Date(b.checked_in_at).getTime() - new Date(a.checked_in_at).getTime(),
+  );
+  const top5 = arrivedSorted.slice(0, 5);
+  const rest = arrivedSorted.slice(5);
 
-  const phaseLabel = PHASE_LABELS[phase as PhaseCode] ?? phase
+  const phaseLabel = PHASE_LABELS[phase as PhaseCode] ?? phase;
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-
       {/* 헤더 */}
       <header className="px-6 md:px-12 py-5 border-b border-foreground flex flex-col md:flex-row md:items-center justify-between gap-3 bg-background flex-shrink-0">
         <div className="flex items-center gap-6">
@@ -84,14 +91,13 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
 
       {/* 2분할 레이아웃 */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 border-t border-foreground overflow-hidden">
-
         {/* 좌측 — 미도착 */}
         <section className="bg-foreground text-background flex flex-col overflow-hidden">
           <div className="px-8 md:px-12 pt-8 pb-4 border-b border-background/20 flex-shrink-0">
             <p className="font-display text-sm font-bold tracking-[0.25em] uppercase text-background/50">
               미도착
             </p>
-            <p className="text-7xl md:text-9xl font-bold tracking-tight mt-1 tabular-nums leading-none">
+            <p className="text-[clamp(4rem,12vw,28rem)] xl:text-[clamp(4rem,22vw,28rem)] font-bold tracking-tight mt-1 tabular-nums leading-none">
               {pending.length}
             </p>
           </div>
@@ -116,7 +122,7 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
             <p className="font-display text-sm font-bold tracking-[0.25em] uppercase text-brand">
               도착 완료
             </p>
-            <p className="text-7xl md:text-9xl font-bold tracking-tight mt-1 text-brand tabular-nums leading-none">
+            <p className="text-[clamp(4rem,12vw,28rem)] xl:text-[clamp(4rem,22vw,28rem)] font-bold tracking-tight mt-1 text-brand tabular-nums leading-none">
               {arrivedSorted.length}
             </p>
           </div>
@@ -124,7 +130,7 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
             {/* 최신 5개 카드 */}
             <div className="space-y-1">
               {top5.map((checkin) => {
-                const church = churches.find((c) => c.id === checkin.church_id)
+                const church = churches.find((c) => c.id === checkin.church_id);
                 return (
                   <div
                     key={checkin.id}
@@ -132,17 +138,22 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
                   >
                     <span className="size-2 bg-brand flex-shrink-0" />
                     <span className="font-bold font-display">
-                      {church?.name ?? '알 수 없음'}
-                      <span className="text-brand ml-1">({checkin.total_count}명)</span>
+                      {church?.name ?? "알 수 없음"}
+                      <span className="text-brand ml-1">
+                        ({checkin.total_count}명)
+                      </span>
                     </span>
                     <span className="ml-auto font-display text-xs font-bold tabular-nums text-muted-foreground">
-                      {new Date(checkin.checked_in_at).toLocaleTimeString('ko-KR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {new Date(checkin.checked_in_at).toLocaleTimeString(
+                        "ko-KR",
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}
                     </span>
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -153,17 +164,20 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
                   도착 완료 명단
                 </p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {rest.map((checkin) => {
-                    const church = churches.find((c) => c.id === checkin.church_id)
-                    return church?.name ?? '알 수 없음'
-                  }).join(', ')}
+                  {rest
+                    .map((checkin) => {
+                      const church = churches.find(
+                        (c) => c.id === checkin.church_id,
+                      );
+                      return church?.name ?? "알 수 없음";
+                    })
+                    .join(", ")}
                 </p>
               </div>
             )}
           </div>
         </section>
-
       </main>
     </div>
-  )
+  );
 }

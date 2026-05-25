@@ -19,6 +19,19 @@ export async function GET(request: Request) {
       const encode = (data: string) =>
         new TextEncoder().encode(`data: ${data}\n\n`)
 
+      // 이미 체크인 완료된 교회면 스트림을 열지 않음 (redirect 루프 방지)
+      const [settings] = await sql`SELECT value FROM app_settings WHERE key = 'active_phase'`
+      const activePhase = settings?.value
+      if (activePhase) {
+        const [checkin] = await sql`
+          SELECT id FROM checkins WHERE church_id = ${churchId} AND phase_code = ${activePhase}
+        `
+        if (checkin) {
+          controller.close()
+          return
+        }
+      }
+
       // 연결 직후 이미 SCANNED 상태이면 즉시 전송 (다운로드 QR 재접속 케이스)
       const [existing] = await sql`
         SELECT status FROM scanner_sessions

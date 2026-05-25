@@ -2,7 +2,7 @@ import { neon } from '@neondatabase/serverless'
 
 export const runtime = 'edge'
 
-const POLL_INTERVAL_MS = 2000
+const POLL_INTERVAL_MS = 1000
 
 export async function GET(request: Request) {
   const sql = neon(process.env.DATABASE_URL!)
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       const encode = (data: string) =>
         new TextEncoder().encode(`data: ${data}\n\n`)
 
-      // 폴링 기준값: 마지막으로 본 체크인 시각 + 현재 active_phase
+      let initialized = false
       let lastCheckedAt: string | null = null
       let lastPhase: string | null = null
 
@@ -29,17 +29,22 @@ export async function GET(request: Request) {
             ORDER BY checked_in_at DESC
             LIMIT 1
           `
-          const currentCheckedAt = latest?.checked_in_at ?? null
+          const rawTs = latest?.checked_in_at
+          const currentCheckedAt = rawTs instanceof Date
+            ? rawTs.toISOString()
+            : rawTs != null ? String(rawTs) : null
 
-          const phaseChanged = lastPhase !== null && lastPhase !== currentPhase
-          const newCheckin = lastCheckedAt !== null && currentCheckedAt !== lastCheckedAt
-
-          if (phaseChanged || newCheckin) {
-            controller.enqueue(encode('REFRESH'))
+          if (initialized) {
+            const phaseChanged = lastPhase !== currentPhase
+            const newCheckin = currentCheckedAt !== lastCheckedAt
+            if (phaseChanged || newCheckin) {
+              controller.enqueue(encode('REFRESH'))
+            }
           }
 
           lastPhase = currentPhase
           lastCheckedAt = currentCheckedAt
+          initialized = true
         } catch {
           clearInterval(timer)
           controller.close()

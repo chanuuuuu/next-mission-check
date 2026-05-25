@@ -41,6 +41,8 @@ export async function POST(request: Request) {
       RETURNING *
     `) as Checkin[]
 
+    await sql`DELETE FROM scanner_sessions WHERE church_id = ${church_id}`
+
     return Response.json(rows[0], { status: 201 })
   } catch (err: unknown) {
     // PostgreSQL 유니크 제약 위반 (unique_church_phase)

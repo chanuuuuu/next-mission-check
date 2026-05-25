@@ -1,8 +1,10 @@
+import { redirect } from 'next/navigation'
 import { CheckinForm } from './CheckinForm'
 import { Church, Checkin } from '@/types'
+import { encodeChurchParam, decodeChurchParam } from '@/lib/encode'
 
 interface Props {
-  params: Promise<{ churchId: string }>
+  params: Promise<{ encodedId: string }>
 }
 
 async function getData(churchId: number) {
@@ -25,8 +27,19 @@ async function getData(churchId: number) {
 }
 
 export default async function CheckinPage({ params }: Props) {
-  const { churchId: churchIdStr } = await params
-  const churchId = Number(churchIdStr)
+  const { encodedId } = await params
+  const churchId = decodeChurchParam(encodedId)
+
+  if (!churchId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center px-6">
+          <h1 className="text-2xl font-bold">잘못된 접근입니다.</h1>
+          <p className="text-muted-foreground mt-2 text-sm">QR 코드를 다시 스캔해주세요.</p>
+        </div>
+      </div>
+    )
+  }
 
   const { church, phase, isDuplicate } = await getData(churchId)
 
@@ -42,20 +55,7 @@ export default async function CheckinPage({ params }: Props) {
   }
 
   if (isDuplicate) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center px-6 max-w-sm animate-[var(--animate-slide-up)]">
-          <div className="size-16 border-2 border-foreground grid place-items-center mx-auto mb-6">
-            <span className="text-2xl">✓</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">이미 체크인 완료</h1>
-          <p className="text-muted-foreground mt-3 text-sm">
-            <span className="font-bold text-foreground">{church.name}</span>은(는)<br />
-            현재 Phase에서 이미 체크인이 완료된 교회입니다.
-          </p>
-        </div>
-      </div>
-    )
+    redirect(`/generate/${encodeChurchParam(church.name, church.id)}`)
   }
 
   return <CheckinForm church={church} phaseCode={phase} />
