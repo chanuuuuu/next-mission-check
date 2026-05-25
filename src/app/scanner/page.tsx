@@ -105,7 +105,7 @@ export default function ScannerPage() {
 
         {/* 메인 뷰포트 */}
         <main className="flex-1 relative grid place-items-center overflow-hidden p-4 md:p-12">
-          <div className="w-full max-w-5xl">
+          <div className="w-full max-w-3xl">
 
             {/* 카메라 영역 */}
             <div className="relative flex-1 aspect-video bg-neutral-900 overflow-hidden border border-white/10">
@@ -114,7 +114,11 @@ export default function ScannerPage() {
               {/* 스캔 프레임 오버레이 — 모서리 가이드만 */}
               {!isProcessing && (
                 <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                  <div className="relative size-72">
+                  <div className="relative size-72 overflow-hidden">
+                    <span className="absolute inset-0 pointer-events-none"
+                          style={{ background: 'var(--brand)', opacity: 0.15 }} />
+                    <span className="absolute top-0 bottom-0 w-1/2 pointer-events-none animate-[var(--animate-shimmer-scan)]"
+                          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)' }} />
                     <span className="absolute -top-1 -left-1 size-6 border-t-2 border-l-2 border-brand" />
                     <span className="absolute -top-1 -right-1 size-6 border-t-2 border-r-2 border-brand" />
                     <span className="absolute -bottom-1 -left-1 size-6 border-b-2 border-l-2 border-brand" />
@@ -143,6 +147,9 @@ export default function ScannerPage() {
                 </span>
               </div>
             </div>
+            <p className="mt-4 text-center text-sm font-display font-bold tracking-wide text-white/60">
+              생성된 QR 코드를 카메라에 가져다 대주세요
+            </p>
           </div>
 
           {/* 에러 툴팁 */}

@@ -10,6 +10,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes shimmer-scan {
+  0%   { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(300%) skewX(-15deg); }
+}
+
 @theme inline {
   --radius-sm: 0px;
   --radius-md: 0px;
@@ -46,6 +51,7 @@
 
   --animate-pulse-scan: pulse-scan 2s ease-in-out infinite;
   --animate-slide-up: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer-scan: shimmer-scan 2s ease-in-out infinite;
 }
 
 :root {
