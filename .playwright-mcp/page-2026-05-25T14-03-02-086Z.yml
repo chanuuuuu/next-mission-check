@@ -1,0 +1,21 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "← 교회 다시 선택" [ref=e6] [cursor=pointer]:
+          - /url: /generate
+        - heading "QR 코드" [level=1] [ref=e7]
+      - generic [ref=e8]: ACTIVE
+    - generic [ref=e9]:
+      - img [ref=e11]
+      - paragraph [ref=e12]: 카메라에 가져다 대세요. 스캔 후 자동으로 다음 단계로 이동합니다.
+    - generic [ref=e13]:
+      - button "PNG 다운로드" [ref=e14]
+      - paragraph [ref=e15]: 네트워크 불안정 시 다운로드된 이미지로도 스캔 가능합니다.
+  - generic [ref=e16]:
+    - img [ref=e18]
+    - button "Open Tanstack query devtools" [ref=e66] [cursor=pointer]:
+      - img [ref=e67]
+  - button "Open Next.js Dev Tools" [ref=e120] [cursor=pointer]:
+    - img [ref=e121]
+  - alert [ref=e124]

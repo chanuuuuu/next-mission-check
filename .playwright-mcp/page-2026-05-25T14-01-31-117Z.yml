@@ -1,0 +1,13 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - paragraph [ref=e5]: 셀프 체크인 · STEP 1
+      - heading "교회 선택" [level=1] [ref=e6]
+      - paragraph [ref=e7]: 소속 교회를 검색하여 선택하세요.
+    - generic [ref=e9]:
+      - generic [ref=e10]: 검색
+      - textbox "교회명 입력..." [ref=e11]
+    - paragraph [ref=e13]: 불러오는 중...
+    - button "다음 — QR 생성" [disabled] [ref=e15]
+  - button "Open Next.js Dev Tools" [ref=e21] [cursor=pointer]:
+    - img [ref=e22]

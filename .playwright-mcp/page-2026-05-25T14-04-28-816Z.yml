@@ -1,0 +1,69 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e5]: 운영자 패널
+        - heading "관리자" [level=1] [ref=e6]
+      - generic [ref=e7]:
+        - paragraph [ref=e8]: 현재 Phase
+        - generic [ref=e9]: 1일차 아침 · 1A
+    - main [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - heading "Phase 전환" [level=2] [ref=e13]
+          - generic [ref=e14]: 0/0 완료
+        - generic [ref=e15]:
+          - button "1A 1일차 아침" [ref=e16]:
+            - paragraph [ref=e17]: 1A
+            - paragraph [ref=e18]: 1일차 아침
+          - button "1P 1일차 저녁" [ref=e19]:
+            - paragraph [ref=e20]: 1P
+            - paragraph [ref=e21]: 1일차 저녁
+          - button "2A 2일차 아침" [ref=e22]:
+            - paragraph [ref=e23]: 2A
+            - paragraph [ref=e24]: 2일차 아침
+          - button "2P 2일차 저녁" [ref=e25]:
+            - paragraph [ref=e26]: 2P
+            - paragraph [ref=e27]: 2일차 저녁
+          - button "3A 3일차 아침" [ref=e28]:
+            - paragraph [ref=e29]: 3A
+            - paragraph [ref=e30]: 3일차 아침
+          - button "3P 3일차 저녁" [ref=e31]:
+            - paragraph [ref=e32]: 3P
+            - paragraph [ref=e33]: 3일차 저녁
+          - button "4A 4일차 아침" [ref=e34]:
+            - paragraph [ref=e35]: 4A
+            - paragraph [ref=e36]: 4일차 아침
+          - button "4P 4일차 저녁" [ref=e37]:
+            - paragraph [ref=e38]: 4P
+            - paragraph [ref=e39]: 4일차 저녁
+      - generic [ref=e40]:
+        - heading "교회 추가" [level=2] [ref=e41]
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - generic [ref=e44]: 교회명
+            - 'textbox "예: 새벽빛교회" [ref=e45]'
+          - generic [ref=e46]:
+            - generic [ref=e47]: 주소 (선택)
+            - 'textbox "예: 서울시 강남구" [ref=e48]'
+          - button "교회 추가" [disabled] [ref=e49]
+      - heading "수동 체크인" [level=2] [ref=e51]
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - heading "전체 교회 현황" [level=2] [ref=e54]
+          - generic [ref=e55]: 1A Phase 기준
+        - table [ref=e57]:
+          - rowgroup [ref=e58]:
+            - row "교회명 상태 인원 체크인 시각" [ref=e59]:
+              - columnheader "교회명" [ref=e60]
+              - columnheader "상태" [ref=e61]
+              - columnheader "인원" [ref=e62]
+              - columnheader "체크인 시각" [ref=e63]
+          - rowgroup
+  - generic [ref=e64]:
+    - img [ref=e66]
+    - button "Open Tanstack query devtools" [ref=e114] [cursor=pointer]:
+      - img [ref=e115]
+  - button "Open Next.js Dev Tools" [ref=e168] [cursor=pointer]:
+    - img [ref=e169]
+  - alert [ref=e172]
