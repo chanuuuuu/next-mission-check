@@ -68,6 +68,7 @@ function ManualRow({
 export default function AdminPage() {
   const queryClient = useQueryClient()
   const [newChurch, setNewChurch] = useState('')
+  const [newAddress, setNewAddress] = useState('')
 
   const { data: phaseData } = useQuery<{ phase: PhaseCode; label: string }>({
     queryKey: ['phase'],
@@ -105,11 +106,12 @@ export default function AdminPage() {
       fetch('/api/churches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newChurch }),
+        body: JSON.stringify({ name: newChurch, address: newAddress }),
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['churches'] })
       setNewChurch('')
+      setNewAddress('')
     },
   })
 
@@ -188,6 +190,18 @@ export default function AdminPage() {
                 className="mt-2 w-full border-2 border-foreground px-3 py-3 outline-none bg-background text-sm"
               />
             </div>
+            <div>
+              <label className="block text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                주소 (선택)
+              </label>
+              <input
+                type="text"
+                value={newAddress}
+                onChange={(e) => setNewAddress(e.target.value)}
+                placeholder="예: 서울시 강남구"
+                className="mt-2 w-full border border-foreground/30 px-3 py-3 outline-none bg-background text-sm focus:border-foreground"
+              />
+            </div>
             <button
               type="submit"
               disabled={!newChurch.trim() || addChurchMutation.isPending}
@@ -196,7 +210,7 @@ export default function AdminPage() {
               {addChurchMutation.isPending ? '추가 중...' : '교회 추가'}
             </button>
             {addChurchMutation.isError && (
-              <p className="text-xs text-destructive font-bold">이미 등록된 교회명입니다.</p>
+              <p className="text-xs text-destructive font-bold">추가 중 오류가 발생했습니다.</p>
             )}
           </form>
         </section>

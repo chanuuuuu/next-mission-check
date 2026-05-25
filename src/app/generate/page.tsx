@@ -93,9 +93,16 @@ export default function GeneratePage() {
                     : 'border-foreground/15 hover:border-foreground'
                 }`}
               >
-                <span className="font-medium">{church.name}</span>
+                <div className="min-w-0">
+                  <p className="font-medium">{church.name}</p>
+                  {church.address && (
+                    <p className={`text-xs mt-0.5 truncate ${selected === church.id ? 'text-brand/70' : 'text-muted-foreground'}`}>
+                      {church.address}
+                    </p>
+                  )}
+                </div>
                 {selected === church.id && (
-                  <span className="text-[10px] font-display font-bold uppercase tracking-widest text-brand">
+                  <span className="text-[10px] font-display font-bold uppercase tracking-widest text-brand flex-shrink-0 ml-3">
                     선택됨
                   </span>
                 )}

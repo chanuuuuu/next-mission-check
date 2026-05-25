@@ -6,7 +6,8 @@
 -- 1. 교회 마스터
 CREATE TABLE IF NOT EXISTS churches (
     id         SERIAL PRIMARY KEY,
-    name       VARCHAR(100) NOT NULL UNIQUE,
+    name       VARCHAR(100) NOT NULL,
+    address    TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

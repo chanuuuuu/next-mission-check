@@ -86,7 +86,10 @@ export default function QRPage({ params }: { params: Promise<{ encodedId: string
             <p className="font-display text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground">
               선택된 교회
             </p>
-            <p className="text-lg font-bold mt-1">{church.name}</p>
+            <p className="text-2xl font-bold mt-1">{church.name}</p>
+            {church.address && (
+              <p className="text-sm text-muted-foreground mt-1">{church.address}</p>
+            )}
           </div>
         )}
 
