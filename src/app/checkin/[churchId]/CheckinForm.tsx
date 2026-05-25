@@ -48,13 +48,19 @@ export function CheckinForm({ church, phaseCode }: Props) {
   // 성공 후 카운트다운 → QR 페이지 리다이렉트
   useEffect(() => {
     if (!submitted) return
-    if (countdown <= 0) {
-      router.push(`/generate/${encodeChurchParam(church.name, church.id)}`)
-      return
-    }
-    const t = setTimeout(() => setCountdown((n) => n - 1), 1000)
-    return () => clearTimeout(t)
-  }, [submitted, countdown, church, router])
+    const target = `/generate/${encodeChurchParam(church.name, church.id)}`
+    const interval = setInterval(() => {
+      setCountdown((n) => {
+        if (n <= 1) {
+          clearInterval(interval)
+          router.push(target)
+          return 0
+        }
+        return n - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [submitted, church.name, church.id, router])
 
   if (submitted) {
     return (
