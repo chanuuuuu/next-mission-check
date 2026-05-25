@@ -40,12 +40,15 @@ Two SSE route handlers exist under `src/app/api/stream/`:
 | Route | Interval | Trigger |
 |---|---|---|
 | `/api/stream/mobile?churchId=X` | 1 s | `scanner_sessions` row for `church_id` reaches SCANNED status |
-| `/api/stream/dashboard` | 2 s | New checkin row or `active_phase` change |
+| `/api/stream/dashboard` | 1 s | New checkin row or `active_phase` change |
 
 - Both require `export const runtime = 'edge'`.
 - No LISTEN/NOTIFY available in Edge — use `setInterval` polling only.
 - Mobile stream closes itself after sending `SCANNED` (one-shot).
-- Dashboard stream tracks last `checked_in_at` and last phase to avoid duplicate REFRESH events.
+- **Mobile stream pre-check**: at connection time, queries `checkins` for current phase. If already checked in, closes immediately without polling — prevents redirect loops.
+- **Dashboard `initialized` flag**: first tick sets baseline values only (no REFRESH). Subsequent ticks emit REFRESH only when `checked_in_at` or `active_phase` changes.
+- **Date comparison**: Neon returns `checked_in_at` as a JavaScript `Date` object, not a string. Always normalize via `.toISOString()` before comparing, or string comparison will always differ (reference inequality).
+- **Stale SCANNED prevention**: `POST /api/checkins` deletes the `scanner_sessions` row after inserting the checkin. Without this, a leftover SCANNED row causes the mobile page to immediately redirect to `/checkin` for unrelated churches.
 
 ---
 
@@ -60,14 +63,31 @@ See `src/lib/schema.sql` for full DDL. Important design choices:
 
 ---
 
-## QR Code Format
+## URL Encoding — `src/lib/encode.ts`
 
-QR value is always `JSON.stringify({ churchId: Number(id) })`.  
+All dynamic routes use base64url-encoded params. Never use raw IDs in URLs.
+
+| Function | Input | Output | Usage |
+|---|---|---|---|
+| `encodeChurchParam(name, id)` | `string, number` | `base64url("${name}:${id}")` | Page URL params |
+| `decodeChurchParam(encoded)` | `string` | `number \| null` | Decode URL param → `churchId` |
+| `encodeQRPayload(churchId)` | `number` | base64url string | QR canvas value |
+| `decodeQRPayload(text)` | `string` | `{ churchId: number } \| null` | Scanner decode |
+
+- **Page URL pattern**: `/generate/[encodedId]`, `/checkin/[encodedId]` — both use `encodeChurchParam`
+- **QR payload**: `encodeQRPayload(churchId)` — scanner sends this as `{ payload: string }` to `/api/sessions`, which decodes server-side with `decodeQRPayload`
+
+---
+
+## QR Code Rendering
+
 Use `QRCodeCanvas` from `qrcode.react` (not `react-qr-code` — SVG only, no PNG download).
 
 ```tsx
 import { QRCodeCanvas } from 'qrcode.react'
-<QRCodeCanvas value={JSON.stringify({ churchId })} size={240} />
+import { encodeQRPayload } from '@/lib/encode'
+
+<QRCodeCanvas value={encodeQRPayload(churchId)} size={240} level="H" marginSize={1} />
 ```
 
 ---
@@ -80,8 +100,8 @@ Tailwind CSS v4 — **no `tailwind.config.js`**. Configuration is CSS-first via 
 - All border radii: **0px** (intentional — sharp corners throughout)
 - Display font: **Space Grotesk** → `font-display`
 - Body font: **DM Sans** → `font-body`
-- Keyframes: `pulse-scan` (opacity pulse), `slide-up` (fade + translate)
-- Animation utilities: `animate-[var(--animate-pulse-scan)]`, `animate-[var(--animate-slide-up)]`
+- Keyframes: `pulse-scan` (opacity pulse), `slide-up` (fade + translate), `shimmer-scan` (horizontal shimmer for scanner overlay)
+- Animation utilities: `animate-[var(--animate-pulse-scan)]`, `animate-[var(--animate-slide-up)]`, `animate-[var(--animate-shimmer-scan)]`
 
 ---
 
@@ -99,5 +119,6 @@ Tailwind CSS v4 — **no `tailwind.config.js`**. Configuration is CSS-first via 
 
 - **RSC + Client split**: pages that need SSE or interactivity use a server component (initial data fetch) wrapping a `'use client'` component (`DashboardClient`, `CheckinForm`).
 - **`lovable_design/`**: reference-only Lovable output. Excluded from `tsconfig.json`. Do not import from it.
-- **Duplicate check-in**: server component in `/checkin/[churchId]/page.tsx` checks for existing checkin before rendering the form. Returns a static "already checked in" screen if duplicate.
-- **Dev mode helpers**: `/generate/[churchId]` shows QR payload text + copy button; `/scanner` renders `MockScannerPanel` for testing without a webcam.
+- **Duplicate check-in**: server component in `/checkin/[encodedId]/page.tsx` decodes the param with `decodeChurchParam`, then queries checkins. If already checked in, server-side `redirect('/generate/${encodeChurchParam(...)}')`.
+- **Generate page SSE guard**: `'use client'` component queries current phase + checkins before opening the mobile SSE. Only opens `EventSource` when `checkinsLoaded && !isCheckedIn`. Shows DONE badge + dimmed QR if already checked in (no SSE opened).
+- **Dev mode helpers removed**: `MockScannerPanel` deleted; DEV payload panel in `/generate/[encodedId]` removed. Both were development scaffolding only.
