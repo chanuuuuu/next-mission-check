@@ -114,11 +114,13 @@ export default function ScannerPage() {
               {/* 스캔 프레임 오버레이 — 모서리 가이드만 */}
               {!isProcessing && (
                 <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                  <div className="relative size-72 overflow-hidden">
-                    <span className="absolute inset-0 pointer-events-none"
+                  <div className="relative size-72">
+                    <span className="absolute inset-0 pointer-events-none overflow-hidden"
                           style={{ background: 'var(--brand)', opacity: 0.15 }} />
-                    <span className="absolute top-0 bottom-0 w-1/2 pointer-events-none animate-[var(--animate-shimmer-scan)]"
-                          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)' }} />
+                    <span className="absolute inset-0 pointer-events-none overflow-hidden">
+                      <span className="absolute top-0 bottom-0 w-1/2 animate-[var(--animate-shimmer-scan)]"
+                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%)' }} />
+                    </span>
                     <span className="absolute -top-1 -left-1 size-6 border-t-2 border-l-2 border-brand" />
                     <span className="absolute -top-1 -right-1 size-6 border-t-2 border-r-2 border-brand" />
                     <span className="absolute -bottom-1 -left-1 size-6 border-b-2 border-l-2 border-brand" />
