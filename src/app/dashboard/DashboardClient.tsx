@@ -34,7 +34,6 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
     initialData: initialCheckins,
   })
 
-  // SSE — 새 체크인 또는 Phase 변경 감지
   useEffect(() => {
     const es = new EventSource('/api/stream/dashboard')
     es.onmessage = (e) => {
@@ -48,22 +47,25 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
 
   const arrivedIds = new Set(checkins.map((c) => c.church_id))
   const pending = churches.filter((c) => !arrivedIds.has(c.id))
-  const arrived = [...checkins].sort(
-    (a, b) => new Date(a.checked_in_at).getTime() - new Date(b.checked_in_at).getTime()
+
+  // 최신순 정렬
+  const arrivedSorted = [...checkins].sort(
+    (a, b) => new Date(b.checked_in_at).getTime() - new Date(a.checked_in_at).getTime()
   )
+  const top5 = arrivedSorted.slice(0, 5)
+  const rest = arrivedSorted.slice(5)
 
   const phaseLabel = PHASE_LABELS[phase as PhaseCode] ?? phase
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
 
       {/* 헤더 */}
-      <header className="px-6 md:px-12 py-5 border-b border-foreground flex flex-col md:flex-row md:items-center justify-between gap-3 bg-background">
+      <header className="px-6 md:px-12 py-5 border-b border-foreground flex flex-col md:flex-row md:items-center justify-between gap-3 bg-background flex-shrink-0">
         <div className="flex items-center gap-6">
           <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-muted-foreground">
             체크인 현황판
           </p>
-          <h1 className="text-2xl font-bold tracking-tight">실시간 대시보드</h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right hidden md:block">
@@ -71,7 +73,7 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
               진행률
             </p>
             <p className="font-display text-xl font-bold tabular-nums">
-              {arrived.length} / {churches.length}
+              {arrivedSorted.length} / {churches.length}
             </p>
           </div>
           <span className="bg-brand text-white px-4 py-2 font-display font-bold text-sm tracking-tight">
@@ -81,32 +83,27 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
       </header>
 
       {/* 2분할 레이아웃 */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 border-t border-foreground">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 border-t border-foreground overflow-hidden">
 
         {/* 좌측 — 미도착 */}
-        <section className="bg-foreground text-background p-8 md:p-12 flex flex-col">
-          <div className="flex justify-between items-end border-b border-background/20 pb-4 mb-8">
-            <div>
-              <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-background/50">
-                미도착
-              </p>
-              <p className="text-4xl md:text-5xl font-bold tracking-tight mt-2">
-                {pending.length}
-                <span className="font-display text-5xl md:text-7xl font-light tabular-nums text-background/40 ml-2">
-                  개 교회
-                </span>
-              </p>
-            </div>
+        <section className="bg-foreground text-background flex flex-col overflow-hidden">
+          <div className="px-8 md:px-12 pt-8 pb-4 border-b border-background/20 flex-shrink-0">
+            <p className="font-display text-sm font-bold tracking-[0.25em] uppercase text-background/50">
+              미도착
+            </p>
+            <p className="text-7xl md:text-9xl font-bold tracking-tight mt-1 tabular-nums leading-none">
+              {pending.length}
+            </p>
           </div>
-          <div className="flex-1 overflow-y-auto space-y-1">
+          <div className="flex-1 overflow-y-auto px-8 md:px-12 py-4 space-y-1">
             {pending.map((church) => (
               <div
                 key={church.id}
                 className="flex justify-between items-center px-4 py-3 border border-background/10 hover:border-background/40 transition-colors"
               >
                 <span className="font-medium opacity-80">{church.name}</span>
-                <span className="font-mono text-[10px] tracking-widest text-background/40">
-                  PENDING
+                <span className="font-display text-[10px] tracking-widest text-background/40 font-bold uppercase">
+                  미도착
                 </span>
               </div>
             ))}
@@ -114,42 +111,55 @@ export function DashboardClient({ initialChurches, initialCheckins, initialPhase
         </section>
 
         {/* 우측 — 도착 완료 */}
-        <section className="bg-background p-8 md:p-12 flex flex-col border-t lg:border-t-0 lg:border-l border-foreground">
-          <div className="flex justify-between items-end border-b border-foreground/20 pb-4 mb-8">
-            <div>
-              <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-brand">
-                도착 완료
-              </p>
-              <p className="text-4xl md:text-5xl font-bold tracking-tight mt-2 text-brand">
-                {arrived.length}
-                <span className="font-display text-5xl md:text-7xl font-light tabular-nums text-brand/40 ml-2">
-                  개 교회
-                </span>
-              </p>
-            </div>
+        <section className="bg-background flex flex-col overflow-hidden border-t lg:border-t-0 lg:border-l border-foreground">
+          <div className="px-8 md:px-12 pt-8 pb-4 border-b border-foreground/20 flex-shrink-0">
+            <p className="font-display text-sm font-bold tracking-[0.25em] uppercase text-brand">
+              도착 완료
+            </p>
+            <p className="text-7xl md:text-9xl font-bold tracking-tight mt-1 text-brand tabular-nums leading-none">
+              {arrivedSorted.length}
+            </p>
           </div>
-          <div className="flex-1 overflow-y-auto space-y-1">
-            {arrived.map((checkin) => {
-              const church = churches.find((c) => c.id === checkin.church_id)
-              return (
-                <div
-                  key={checkin.id}
-                  className="flex items-center gap-3 px-4 py-3 border border-brand/20 hover:border-brand/40 transition-colors"
-                >
-                  <span className="size-2 bg-brand flex-shrink-0" />
-                  <span className="font-bold font-display">
-                    {church?.name ?? '알 수 없음'}
-                    <span className="text-brand ml-1">({checkin.total_count}명)</span>
-                  </span>
-                  <span className="ml-auto font-display text-xs font-bold tabular-nums text-muted-foreground">
-                    {new Date(checkin.checked_in_at).toLocaleTimeString('ko-KR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-              )
-            })}
+          <div className="flex-1 overflow-y-auto px-8 md:px-12 py-4 flex flex-col gap-4">
+            {/* 최신 5개 카드 */}
+            <div className="space-y-1">
+              {top5.map((checkin) => {
+                const church = churches.find((c) => c.id === checkin.church_id)
+                return (
+                  <div
+                    key={checkin.id}
+                    className="flex items-center gap-3 px-4 py-3 border border-brand/20 hover:border-brand/40 transition-colors"
+                  >
+                    <span className="size-2 bg-brand flex-shrink-0" />
+                    <span className="font-bold font-display">
+                      {church?.name ?? '알 수 없음'}
+                      <span className="text-brand ml-1">({checkin.total_count}명)</span>
+                    </span>
+                    <span className="ml-auto font-display text-xs font-bold tabular-nums text-muted-foreground">
+                      {new Date(checkin.checked_in_at).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* 나머지 콤마 목록 */}
+            {rest.length > 0 && (
+              <div className="px-4 py-3 border border-foreground/10">
+                <p className="font-display text-[10px] font-bold tracking-widest uppercase text-muted-foreground mb-2">
+                  도착 완료 명단
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {rest.map((checkin) => {
+                    const church = churches.find((c) => c.id === checkin.church_id)
+                    return church?.name ?? '알 수 없음'
+                  }).join(', ')}
+                </p>
+              </div>
+            )}
           </div>
         </section>
 

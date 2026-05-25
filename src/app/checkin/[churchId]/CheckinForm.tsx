@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { Church } from '@/types'
+import { encodeChurchParam } from '@/lib/encode'
 
 interface Props {
   church: Church
@@ -10,10 +12,19 @@ interface Props {
 }
 
 export function CheckinForm({ church, phaseCode }: Props) {
-  const [allArrived, setAllArrived] = useState(true)
+  const router = useRouter()
+  const [allArrived, setAllArrived] = useState(false)
   const [headcount, setHeadcount] = useState('')
   const [note, setNote] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [countdown, setCountdown] = useState(3)
+
+  const isMorning = phaseCode.endsWith('A')
+  const greeting = isMorning
+    ? `안녕하세요 ${church.name} 선교대원 여러분,\n오늘도 은혜로운 선교가 되기를 소망합니다.`
+    : `안녕하세요 ${church.name} 선교대원 여러분,\n오늘도 너무 고생하셨습니다.`
+
+  const canSubmit = allArrived && Number(headcount) >= 1
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -24,7 +35,7 @@ export function CheckinForm({ church, phaseCode }: Props) {
           church_id: church.id,
           phase_code: phaseCode,
           is_all_arrived: allArrived,
-          total_count: Number(headcount) || 0,
+          total_count: Number(headcount),
           report_notes: note || null,
         }),
       }).then(async (r) => {
@@ -33,6 +44,17 @@ export function CheckinForm({ church, phaseCode }: Props) {
       }),
     onSuccess: () => setSubmitted(true),
   })
+
+  // 성공 후 카운트다운 → QR 페이지 리다이렉트
+  useEffect(() => {
+    if (!submitted) return
+    if (countdown <= 0) {
+      router.push(`/generate/${encodeChurchParam(church.name, church.id)}`)
+      return
+    }
+    const t = setTimeout(() => setCountdown((n) => n - 1), 1000)
+    return () => clearTimeout(t)
+  }, [submitted, countdown, church, router])
 
   if (submitted) {
     return (
@@ -48,6 +70,9 @@ export function CheckinForm({ church, phaseCode }: Props) {
           <p className="mt-2 text-sm text-muted-foreground">
             총 <span className="font-bold text-brand text-lg">{headcount || 0}</span>명 도착
           </p>
+          <p className="mt-6 text-sm text-muted-foreground">
+            <span className="font-bold text-foreground tabular-nums">{countdown}</span>초 후 QR 페이지로 이동합니다.
+          </p>
         </div>
       </div>
     )
@@ -62,11 +87,8 @@ export function CheckinForm({ church, phaseCode }: Props) {
           <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase opacity-60">
             셀프 체크인 · STEP 3
           </p>
-          <h1 className="text-2xl font-bold tracking-tight mt-3 leading-snug text-balance">
-            안녕하세요{' '}
-            <span className="text-brand">{church.name}</span>교회<br />
-            선교 대원 여러분,<br />
-            오늘도 너무 고생하셨습니다.
+          <h1 className="text-2xl font-bold tracking-tight mt-3 leading-snug text-balance whitespace-pre-line">
+            {greeting}
           </h1>
           <p className="mt-3 text-sm opacity-70">셀프 체크인을 진행하겠습니다.</p>
         </header>
@@ -80,7 +102,7 @@ export function CheckinForm({ church, phaseCode }: Props) {
 
             {/* 모든 인원 도착 여부 */}
             <div>
-              <label className="block font-display text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              <label className="block font-display text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
                 모든 인원 도착 여부
               </label>
               <button
@@ -92,8 +114,8 @@ export function CheckinForm({ church, phaseCode }: Props) {
                     : 'border-foreground/20'
                 }`}
               >
-                <span className="font-medium">모든 인원이 도착이 완료되었나요?</span>
-                <span className={`size-6 border-2 grid place-items-center font-bold text-sm ${
+                <span className="font-medium text-base">모든 인원이 도착이 완료되었나요?</span>
+                <span className={`size-6 border-2 grid place-items-center font-bold text-sm flex-shrink-0 ${
                   allArrived
                     ? 'border-brand bg-brand text-white'
                     : 'border-foreground/30'
@@ -105,7 +127,7 @@ export function CheckinForm({ church, phaseCode }: Props) {
 
             {/* 현재 인원 수 */}
             <div>
-              <label className="block font-display text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              <label className="block font-display text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
                 현재 인원 수
               </label>
               <input
@@ -116,12 +138,12 @@ export function CheckinForm({ church, phaseCode }: Props) {
                 placeholder="0"
                 className="w-full border-b-2 border-foreground py-3 text-4xl font-display font-bold outline-none bg-transparent placeholder:text-muted-foreground/40"
               />
-              <p className="text-xs text-muted-foreground mt-1">숫자만 입력</p>
+              <p className="text-sm text-muted-foreground mt-2">숫자만 입력</p>
             </div>
 
             {/* 추가 보고 사항 */}
             <div>
-              <label className="block font-display text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              <label className="block font-display text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
                 추가 보고 사항
               </label>
               <textarea
@@ -141,10 +163,15 @@ export function CheckinForm({ church, phaseCode }: Props) {
                 오류가 발생했습니다. 다시 시도해주세요.
               </p>
             )}
+            {!canSubmit && !mutation.isError && (
+              <p className="text-xs text-muted-foreground mb-3 text-center">
+                {!allArrived ? '모든 인원 도착 여부를 확인해주세요.' : '인원 수를 입력해주세요.'}
+              </p>
+            )}
             <button
               type="submit"
-              disabled={mutation.isPending}
-              className="w-full bg-brand text-white py-5 font-display font-bold uppercase tracking-widest text-base hover:brightness-110 transition-all disabled:opacity-60"
+              disabled={!canSubmit || mutation.isPending}
+              className="w-full bg-brand text-white py-5 font-display font-bold uppercase tracking-widest text-base hover:brightness-110 transition-all disabled:opacity-40"
             >
               {mutation.isPending ? '처리 중...' : '완료'}
             </button>

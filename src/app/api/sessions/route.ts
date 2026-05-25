@@ -1,9 +1,11 @@
 import { sql } from '@/lib/db'
 import { sendScanErrorAlert } from '@/lib/discord'
+import { decodeQRPayload } from '@/lib/encode'
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const churchId = Number(body?.churchId)
+  const decoded = decodeQRPayload(body?.payload ?? '')
+  const churchId = decoded?.churchId ?? 0
 
   if (!churchId || isNaN(churchId)) {
     const raw = JSON.stringify(body)
