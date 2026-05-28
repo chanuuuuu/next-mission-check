@@ -30,6 +30,22 @@ export function decodeChurchParam(encoded: string): number | null {
   }
 }
 
+export function encodeCheckinParam(name: string, id: number): string {
+  return toBase64url(`${name}:${id}:c`)
+}
+
+export function decodeCheckinParam(encoded: string): number | null {
+  try {
+    const decoded = fromBase64url(encoded)
+    const parts = decoded.split(':')
+    if (parts[parts.length - 1] !== 'c') return null
+    const id = parseInt(parts[parts.length - 2], 10)
+    return isNaN(id) ? null : id
+  } catch {
+    return null
+  }
+}
+
 export function encodeQRPayload(churchId: number): string {
   return toBase64url(JSON.stringify({ churchId }))
 }

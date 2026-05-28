@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { CheckinForm } from './CheckinForm'
 import { Church, Checkin } from '@/types'
-import { encodeChurchParam, decodeChurchParam } from '@/lib/encode'
+import { encodeChurchParam, decodeCheckinParam } from '@/lib/encode'
 
 interface Props {
   params: Promise<{ encodedId: string }>
@@ -28,7 +28,7 @@ async function getData(churchId: number) {
 
 export default async function CheckinPage({ params }: Props) {
   const { encodedId } = await params
-  const churchId = decodeChurchParam(encodedId)
+  const churchId = decodeCheckinParam(encodedId)
 
   if (!churchId) {
     return (
