@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -16,6 +16,8 @@ interface Props {
 export default function QRPageClient({ church, phase, initialIsCheckedIn }: Props) {
   const router = useRouter()
   const canvasWrapRef = useRef<HTMLDivElement>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [toastVisible, setToastVisible] = useState(false)
   const isCheckedIn = initialIsCheckedIn
   const qrValue = encodeQRPayload(church.id)
 
@@ -31,26 +33,26 @@ export default function QRPageClient({ church, phase, initialIsCheckedIn }: Prop
     return () => es.close()
   }, [church, phase, isCheckedIn, router])
 
-  const handleDownload = () => {
-    const qrCanvas = canvasWrapRef.current?.querySelector('canvas')
-    if (!qrCanvas) return
+  const showToast = () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastVisible(true)
+    toastTimer.current = setTimeout(() => setToastVisible(false), 2000)
+  }
 
-    const size = 1080
-    const qrSize = size * 0.8
-    const offset = size * 0.1
+  const handleShare = async () => {
+    const url = window.location.href
+    const title = `${church.name} QR 체크인`
 
-    const output = document.createElement('canvas')
-    output.width = size
-    output.height = size
-    const ctx = output.getContext('2d')!
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, size, size)
-    ctx.drawImage(qrCanvas, offset, offset, qrSize, qrSize)
-
-    const a = document.createElement('a')
-    a.href = output.toDataURL('image/png')
-    a.download = `qr-${church.name}.png`
-    a.click()
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url })
+      } catch {
+        // 사용자가 취소한 경우
+      }
+    } else {
+      await navigator.clipboard.writeText(url)
+      showToast()
+    }
   }
 
   return (
@@ -116,19 +118,22 @@ export default function QRPageClient({ church, phase, initialIsCheckedIn }: Prop
         </div>
 
         {/* 하단 */}
-        <div className="px-6 py-5 border-t border-foreground bg-background space-y-2 shrink-0">
+        <div className="px-6 py-5 border-t border-foreground bg-background shrink-0">
           <button
-            onClick={handleDownload}
+            onClick={handleShare}
             className="w-full bg-brand text-white py-4 font-display font-bold uppercase tracking-widest text-sm hover:brightness-110 transition-all"
           >
-            PNG 다운로드
+            공유하기
           </button>
-          <p className="text-[11px] text-center text-muted-foreground">
-            네트워크 불안정 시 다운로드된 이미지로도 스캔 가능합니다.
-          </p>
         </div>
 
       </div>
+
+      {/* 바텀 토스트 */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-foreground text-background px-5 py-3 font-display font-bold text-sm tracking-wide whitespace-nowrap transition-all duration-300 ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
+        URL이 복사되었습니다
+      </div>
+
     </div>
   )
 }

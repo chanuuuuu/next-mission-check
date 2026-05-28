@@ -1,8 +1,27 @@
 import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import { sql } from '@/lib/db'
 import { decodeChurchParam } from '@/lib/encode'
 import { Church, Checkin } from '@/types'
 import QRPageClient from './QRPageClient'
+
+export async function generateMetadata({ params }: { params: Promise<{ encodedId: string }> }): Promise<Metadata> {
+  const { encodedId } = await params
+  const churchId = decodeChurchParam(encodedId)
+  if (!churchId) return {}
+
+  const [church] = (await sql`SELECT name FROM churches WHERE id = ${churchId}`) as Church[]
+  if (!church) return {}
+
+  return {
+    title: `${church.name} QR 체크인`,
+    openGraph: {
+      title: `${church.name} QR 체크인`,
+      description: '미션 체크인 QR 코드입니다. 링크를 열어 QR을 확인하세요.',
+      images: [{ url: '/logo.png', width: 1200, height: 630 }],
+    },
+  }
+}
 
 export default async function QRPage({ params }: { params: Promise<{ encodedId: string }> }) {
   const { encodedId } = await params

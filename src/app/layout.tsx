@@ -14,6 +14,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'),
   title: "선교 대원 체크인 시스템",
   description: "교회 선교 대원 QR 기반 셀프 체크인",
 };
