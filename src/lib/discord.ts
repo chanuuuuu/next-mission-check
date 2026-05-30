@@ -1,5 +1,33 @@
 const WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL
 
+export async function sendSyncErrorAlert(params: {
+  department: string
+  name?: string
+  reason: string
+  timestamp?: string
+}) {
+  if (!WEBHOOK_URL) return
+  const ts = params.timestamp ?? new Date().toISOString()
+  await fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: '선교 등록 시스템',
+      embeds: [
+        {
+          title: `⚠️ 동기화 실패 — ${params.department}`,
+          color: 0xff4444,
+          fields: [
+            { name: '대상', value: params.name ?? '(이름 없음)', inline: true },
+            { name: '발생 시각', value: ts, inline: true },
+            { name: '오류 원인', value: params.reason, inline: false },
+          ],
+        },
+      ],
+    }),
+  }).catch(() => {})
+}
+
 export async function sendScanErrorAlert(params: {
   scannedText: string
   reason: string
