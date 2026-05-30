@@ -215,21 +215,38 @@ _목표: 웹훅 end-to-end 검증 및 프로덕션 준비_
   - `/inquiry/admin`에서 [동기화] 버튼 클릭 → 응답 `{ synced, failed }` 토스트 확인
   - 구글 시트 `[동기화 상태]` 컬럼에 `SUCCESS` 마킹 확인
 
-- [ ] 5.4. **각 부서 GAS 트리거 등록** (`tech_stack.md` Section 5 참조):
-  - 2청, 기타부서, 청장년 3개 폼 응답 시트에 `onSubmit` 트리거 등록
-  - 웹훅 URL: `https://[배포 도메인]/api/inquery/sync/webhook`
+- [ ] 5.4. **GAS 연동 사전 준비** (트리거 등록 전 필수):
 
-- [ ] 5.5. **관리자 인증 플로우 검증**:
+  **a. 각 구글 시트에 `[동기화 상태]` 컬럼 수동 추가**
+  - 3개 부서 폼 응답 스프레드시트 각각에 헤더 행 맨 우측에 `동기화 상태` 컬럼을 직접 추가합니다.
+  - 수동 동기화(manual sync)가 이 컬럼에 `SUCCESS`를 Write back 하므로, 컬럼이 없으면 기록이 누락됩니다.
+
+  **b. GAS Script Properties에 Discord Webhook URL 저장**
+  - Apps Script 편집기 → 좌측 메뉴 **프로젝트 설정(⚙)** → **스크립트 속성** → 속성 추가
+  - 속성 이름: `DISCORD_WEBHOOK_URL`, 값: Discord Webhook URL 입력
+  - GAS 스크립트가 웹훅 실패 시 `PropertiesService.getScriptProperties().getProperty('DISCORD_WEBHOOK_URL')`로 이 값을 읽습니다.
+
+  **c. Vercel 배포 완료 후 GAS 웹훅 URL 교체**
+  - `gas_webhook_template.gs`의 `WEBHOOK_URL` 상수를 로컬호스트가 아닌 **Vercel 배포 도메인**으로 교체합니다.
+  - `const WEBHOOK_URL = 'https://[YOUR_DOMAIN]/api/inquery/sync/webhook'`
+  - GAS는 로컬 개발 서버에 접근할 수 없으므로, 반드시 배포 후 실제 URL을 사용해야 합니다.
+
+- [ ] 5.5. **각 부서 GAS 트리거 등록** (`tech_stack.md` Section 5 참조):
+  - 2청, 기타부서, 청장년 3개 폼 응답 시트에 `onFormSubmit` 트리거 등록
+  - 트리거 설정: **이벤트 소스 = 스프레드시트에서 / 이벤트 유형 = 양식 제출 시**
+  - ⚠️ `FormApp` 기반 트리거(`Forms에서`)가 아닌 **`Spreadsheet` 기반 트리거**여야 `e.namedValues`가 제공됩니다.
+
+- [ ] 5.6. **관리자 인증 플로우 검증**:
   - 쿠키 없이 `/inquiry/admin` 직접 접근 → `/inquiry/admin/login` 리다이렉트 확인
   - 틀린 PIN 입력 → 401 에러 메시지 확인
   - 올바른 PIN → 쿠키 발급 → 관리자 화면 접근 확인
 
-- [ ] 5.6. **납부 토글 낙관적 업데이트 검증**:
+- [ ] 5.7. **납부 토글 낙관적 업데이트 검증**:
   - 토글 클릭 즉시 UI 반전 확인
   - 네트워크 탭에서 PATCH 요청 후 DB 실제 반영 확인
   - 의도적으로 API를 실패시켜 롤백 동작 확인
 
-- [ ] 5.7. **v2 명세서 작성 (구현 보류 항목)**:
+- [ ] 5.8. **v2 명세서 작성 (구현 보류 항목)**:
   - 관리자의 대원 수정 (이름, 연락처, 부서 변경)
   - 관리자의 대원 삭제
   - 조회 페이지 CSV 다운로드

@@ -18,5 +18,5 @@ export default async function InquiryAdminPage() {
     ORDER BY sub_department_1, sub_department_2, name
   `) as MissionRegistration[]
 
-  return <AdminClient initialData={initial} initialDept="2청" />
+  return <AdminClient initialData={initial} />
 }
