@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 
+export const runtime = 'edge'
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 // PATCH /api/inquery/registrations/[id]/payment — 납부 상태 토글

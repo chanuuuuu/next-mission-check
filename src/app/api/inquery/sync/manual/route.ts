@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
       const churchName = findByKeyword(mapping.church_name) ?? null
       const arrivalTime = findByKeyword(mapping.arrival_time) ?? null
       const usePersonalCar = parseBooleanField(findByKeyword(mapping.use_personal_car))
+      const useCarDuringMission = findByKeyword(mapping.use_car_during_mission) ?? null
       const useReturnBus = parseBooleanField(findByKeyword(mapping.use_return_bus))
 
       if (!subDept1 || !name || !phoneRaw) {
@@ -127,18 +128,19 @@ export async function POST(req: NextRequest) {
         await sql`
           INSERT INTO mission_registrations
             (department_main, sub_department_1, sub_department_2, small_group,
-             name, phone_last_four, church_name, arrival_time, use_personal_car, use_return_bus)
+             name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus)
           VALUES
             (${department}, ${subDept1}, ${subDept2}, ${smallGroup},
-             ${name}, ${phoneFour}, ${churchName}, ${arrivalTime}, ${usePersonalCar}, ${useReturnBus})
+             ${name}, ${phoneFour}, ${churchName}, ${arrivalTime}, ${usePersonalCar}, ${useCarDuringMission}, ${useReturnBus})
           ON CONFLICT ON CONSTRAINT uq_registration DO UPDATE SET
-            department_main  = EXCLUDED.department_main,
-            small_group      = EXCLUDED.small_group,
-            church_name      = EXCLUDED.church_name,
-            arrival_time     = EXCLUDED.arrival_time,
-            use_personal_car = EXCLUDED.use_personal_car,
-            use_return_bus   = EXCLUDED.use_return_bus,
-            updated_at       = NOW()
+            department_main        = EXCLUDED.department_main,
+            small_group            = EXCLUDED.small_group,
+            church_name            = EXCLUDED.church_name,
+            arrival_time           = EXCLUDED.arrival_time,
+            use_personal_car       = EXCLUDED.use_personal_car,
+            use_car_during_mission = EXCLUDED.use_car_during_mission,
+            use_return_bus         = EXCLUDED.use_return_bus,
+            updated_at             = NOW()
         `
         synced++
         successRowIndices.push(i + 2) // 1-indexed + 헤더 행 offset

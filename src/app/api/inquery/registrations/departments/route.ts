@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 
+export const runtime = 'edge'
+
 // GET /api/inquery/registrations/departments
 // ?department_main=X                   → sub_department_1 목록
 // ?department_main=X&sub_department_1=Y → sub_department_2 목록 (없으면 빈 배열)

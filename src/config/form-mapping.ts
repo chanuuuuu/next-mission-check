@@ -1,54 +1,59 @@
-import type { FormMappingConfig } from '@/types'
+import type { FormMappingConfig } from "@/types";
 
-export const DEPARTMENT_MAINS = ['2청', '기타부서', '청장년'] as const
-export type DepartmentMain = typeof DEPARTMENT_MAINS[number]
+export const DEPARTMENT_MAINS = ["2청", "기타부서", "청장년"] as const;
+export type DepartmentMain = (typeof DEPARTMENT_MAINS)[number];
 
 export const FORM_MAPPINGS: Record<DepartmentMain, FormMappingConfig> = {
-  '2청': {
-    sub_department_1: '소속부서(진)',
-    sub_department_2: '소속부서(팀)',
+  "2청": {
+    sub_department_1: "소속부서(진)",
+    sub_department_2: "소속부서(팀)",
     small_group: null,
-    name: '이름',
-    phone_last_four: '핸드폰 번호',
-    church_name: '연계교회 이름',
-    arrival_time: '도착 예상시간',
-    use_personal_car: '자차를 가져 오시나요',
-    use_return_bus: '교회 버스에 탑승하시나요',
+    name: "등록자 이름",
+    phone_last_four: "핸드폰 번호",
+    church_name: "연계교회 이름",
+    schedule_survey: "참여 일정 및 이동수단 조사",
+    arrival_time: "연계교회 도착 예상시간",
+    use_personal_car: "자차를 가져 오시나요",
+    use_car_during_mission: "선교 기간 중 자차를 이용하시나요",
+    use_return_bus: "교회 버스에 탑승하시나요",
   },
   기타부서: {
-    sub_department_1: '소속부서',
+    sub_department_1: "소속부서",
     sub_department_2: null,
     small_group: null,
-    name: '이름',
-    phone_last_four: '핸드폰 번호',
+    name: "등록자 이름",
+    phone_last_four: "핸드폰 번호",
     church_name: null,
-    arrival_time: '도착 예상시간',
-    use_personal_car: '자차를 가져 오시나요',
-    use_return_bus: '교회 버스에 탑승하시나요',
+    schedule_survey: "참여 일정 및 이동수단 조사",
+    arrival_time: "연계교회 도착 예상시간",
+    use_personal_car: "자차를 가져 오시나요",
+    use_car_during_mission: "선교 기간 중 자차를 이용하시나요",
+    use_return_bus: "교회 버스에 탑승하시나요",
   },
   청장년: {
-    sub_department_1: '세부소속(진)',
-    sub_department_2: '연계교회 이름',
-    small_group: '소속 목장',
-    name: '이름',
-    phone_last_four: '핸드폰 번호',
+    sub_department_1: "세부소속(진)",
+    sub_department_2: "연계교회 이름",
+    small_group: "소속 목장 이름",
+    name: "등록자 이름",
+    phone_last_four: "핸드폰 번호",
     church_name: null,
-    arrival_time: '도착 예상시간',
-    use_personal_car: '자차를 가져 오시나요',
-    use_return_bus: '교회 버스에 탑승하시나요',
+    schedule_survey: "참여 일정 및 이동수단 조사",
+    arrival_time: "연계교회 도착 예상시간",
+    use_personal_car: "자차를 가져 오시나요",
+    use_car_during_mission: "선교 기간 중 자차를 이용하시나요",
+    use_return_bus: "교회 버스에 탑승하시나요",
   },
-}
+};
 
-// GAS namedValues는 배열로 감싸져 있으므로 첫 번째 원소를 사용
 export function extractFromNamedValues(
   namedValues: Record<string, string[]>,
-  mapping: FormMappingConfig
+  mapping: FormMappingConfig,
 ): Partial<Record<keyof FormMappingConfig, string>> {
   const find = (keyword: string | null) => {
-    if (!keyword) return undefined
-    const key = Object.keys(namedValues).find((k) => k.includes(keyword))
-    return key ? namedValues[key][0]?.trim() : undefined
-  }
+    if (!keyword) return undefined;
+    const key = Object.keys(namedValues).find((k) => k.includes(keyword));
+    return key ? namedValues[key][0]?.trim() : undefined;
+  };
 
   return {
     sub_department_1: find(mapping.sub_department_1),
@@ -59,11 +64,17 @@ export function extractFromNamedValues(
     church_name: find(mapping.church_name) ?? undefined,
     arrival_time: find(mapping.arrival_time),
     use_personal_car: find(mapping.use_personal_car),
+    use_car_during_mission: find(mapping.use_car_during_mission) ?? undefined,
     use_return_bus: find(mapping.use_return_bus),
-  }
+    schedule_survey: find(mapping.schedule_survey) ?? undefined,
+  };
 }
 
 export function parseBooleanField(value: string | undefined): boolean | null {
-  if (!value) return null
-  return value.includes('예') || value.includes('네') || value.toLowerCase().includes('yes')
+  if (!value) return null;
+  return (
+    value.includes("예") ||
+    value.includes("네") ||
+    value.toLowerCase().includes("yes")
+  );
 }

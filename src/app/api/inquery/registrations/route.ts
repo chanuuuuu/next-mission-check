@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import type { MissionRegistration } from '@/types'
 
+export const runtime = 'edge'
+
 // GET /api/inquery/registrations
 // ?department_main=&sub_department_1=&sub_department_2=&name=
 export async function GET(req: NextRequest) {
@@ -11,8 +13,28 @@ export async function GET(req: NextRequest) {
   const subDept2 = searchParams.get('sub_department_2') // 빈 문자열이면 IS NULL 처리
   const name = searchParams.get('name') || null
 
-  if (!departmentMain || !subDept1) {
-    return NextResponse.json({ error: 'department_main and sub_department_1 required' }, { status: 400 })
+  if (!departmentMain) {
+    return NextResponse.json({ error: 'department_main required' }, { status: 400 })
+  }
+
+  // sub_department_1 없으면 부서 전체 조회 (어드민용)
+  if (!subDept1) {
+    const rows = name
+      ? (await sql`
+          SELECT id, department_main, sub_department_1, sub_department_2, small_group,
+                 name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
+          FROM mission_registrations
+          WHERE department_main = ${departmentMain} AND name = ${name}
+          ORDER BY sub_department_1, sub_department_2, name
+        `) as MissionRegistration[]
+      : (await sql`
+          SELECT id, department_main, sub_department_1, sub_department_2, small_group,
+                 name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
+          FROM mission_registrations
+          WHERE department_main = ${departmentMain}
+          ORDER BY sub_department_1, sub_department_2, name
+        `) as MissionRegistration[]
+    return NextResponse.json(rows)
   }
 
   // sub_department_2 파라미터가 없으면(null) 조건 무시, 빈 문자열('')이면 IS NULL
@@ -20,7 +42,7 @@ export async function GET(req: NextRequest) {
     ? name
       ? (await sql`
           SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                 name, church_name, arrival_time, use_personal_car, use_return_bus, payment_status
+                 name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
           FROM mission_registrations
           WHERE department_main = ${departmentMain}
             AND sub_department_1 = ${subDept1}
@@ -29,7 +51,7 @@ export async function GET(req: NextRequest) {
         `) as MissionRegistration[]
       : (await sql`
           SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                 name, church_name, arrival_time, use_personal_car, use_return_bus, payment_status
+                 name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
           FROM mission_registrations
           WHERE department_main = ${departmentMain}
             AND sub_department_1 = ${subDept1}
@@ -39,7 +61,7 @@ export async function GET(req: NextRequest) {
       ? name
         ? (await sql`
             SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                   name, church_name, arrival_time, use_personal_car, use_return_bus, payment_status
+                   name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
             FROM mission_registrations
             WHERE department_main = ${departmentMain}
               AND sub_department_1 = ${subDept1}
@@ -49,7 +71,7 @@ export async function GET(req: NextRequest) {
           `) as MissionRegistration[]
         : (await sql`
             SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                   name, church_name, arrival_time, use_personal_car, use_return_bus, payment_status
+                   name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
             FROM mission_registrations
             WHERE department_main = ${departmentMain}
               AND sub_department_1 = ${subDept1}
@@ -59,7 +81,7 @@ export async function GET(req: NextRequest) {
       : name
         ? (await sql`
             SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                   name, church_name, arrival_time, use_personal_car, use_return_bus, payment_status
+                   name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
             FROM mission_registrations
             WHERE department_main = ${departmentMain}
               AND sub_department_1 = ${subDept1}
@@ -69,7 +91,7 @@ export async function GET(req: NextRequest) {
           `) as MissionRegistration[]
         : (await sql`
             SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                   name, church_name, arrival_time, use_personal_car, use_return_bus, payment_status
+                   name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
             FROM mission_registrations
             WHERE department_main = ${departmentMain}
               AND sub_department_1 = ${subDept1}

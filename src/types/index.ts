@@ -48,7 +48,9 @@ export interface MissionRegistration {
   church_name: string | null
   arrival_time: string | null
   use_personal_car: boolean | null
+  use_car_during_mission: string | null
   use_return_bus: boolean | null
+  schedule_survey: string | null
   payment_status: boolean
   created_at: string
   updated_at: string
@@ -63,7 +65,9 @@ export interface FormMappingConfig {
   church_name: string | null
   arrival_time: string
   use_personal_car: string
+  use_car_during_mission: string | null
   use_return_bus: string
+  schedule_survey: string | null
 }
 
 export const PHASE_LABELS: Record<PhaseCode, string> = {

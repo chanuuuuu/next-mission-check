@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
+
+export const runtime = 'edge'
 import { FORM_MAPPINGS, extractFromNamedValues, parseBooleanField } from '@/config/form-mapping'
 import { sendSyncErrorAlert } from '@/lib/discord'
 
@@ -35,19 +37,22 @@ export async function POST(req: NextRequest) {
   await sql`
     INSERT INTO mission_registrations
       (department_main, sub_department_1, sub_department_2, small_group,
-       name, phone_last_four, church_name, arrival_time, use_personal_car, use_return_bus)
+       name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey)
     VALUES
       (${department}, ${fields.sub_department_1}, ${fields.sub_department_2 ?? null}, ${fields.small_group ?? null},
        ${fields.name}, ${phoneFour}, ${fields.church_name ?? null}, ${fields.arrival_time ?? null},
-       ${parseBooleanField(fields.use_personal_car)}, ${parseBooleanField(fields.use_return_bus)})
+       ${parseBooleanField(fields.use_personal_car)}, ${fields.use_car_during_mission ?? null},
+       ${parseBooleanField(fields.use_return_bus)}, ${fields.schedule_survey ?? null})
     ON CONFLICT ON CONSTRAINT uq_registration DO UPDATE SET
-      department_main  = EXCLUDED.department_main,
-      small_group      = EXCLUDED.small_group,
-      church_name      = EXCLUDED.church_name,
-      arrival_time     = EXCLUDED.arrival_time,
-      use_personal_car = EXCLUDED.use_personal_car,
-      use_return_bus   = EXCLUDED.use_return_bus,
-      updated_at       = NOW()
+      department_main        = EXCLUDED.department_main,
+      small_group            = EXCLUDED.small_group,
+      church_name            = EXCLUDED.church_name,
+      arrival_time           = EXCLUDED.arrival_time,
+      use_personal_car       = EXCLUDED.use_personal_car,
+      use_car_during_mission = EXCLUDED.use_car_during_mission,
+      use_return_bus         = EXCLUDED.use_return_bus,
+      schedule_survey        = EXCLUDED.schedule_survey,
+      updated_at             = NOW()
   `
 
   return NextResponse.json({ ok: true })
