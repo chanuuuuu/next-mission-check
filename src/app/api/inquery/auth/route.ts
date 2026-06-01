@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcryptjs from 'bcryptjs'
 
-export const runtime = 'edge'
-
 const COOKIE_NAME = 'inquery_admin_session'
 const COOKIE_MAX_AGE = 60 * 60 * 8 // 8시간
 
