@@ -34,6 +34,7 @@ function onFormSubmit(e) {
 
       if (response.getResponseCode() === 200 || response.getResponseCode() === 201) {
         success = true
+        markSyncStatus(e, 'SUCCESS')
         break
       }
     } catch (err) {
@@ -52,7 +53,8 @@ function onFormSubmit(e) {
     // Discord 직접 알림 (DISCORD_WEBHOOK_URL을 스크립트 속성에 저장)
     const discordUrl = PropertiesService.getScriptProperties().getProperty('DISCORD_WEBHOOK_URL')
     if (discordUrl) {
-      const name = namedValues['이름'] ? namedValues['이름'][0] : '(이름 없음)'
+      const nameKey = Object.keys(namedValues).find(k => k.includes('이름'))
+      const name = nameKey ? namedValues[nameKey][0] : '(이름 없음)'
       UrlFetchApp.fetch(discordUrl, {
         method: 'post',
         contentType: 'application/json',
