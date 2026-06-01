@@ -103,17 +103,20 @@
 
 ## Phase 5: 통합 테스트 및 배포
 
-- [ ] 5.1. 웹훅 curl 테스트 (3개 부서)
-- [ ] 5.2. NULLS NOT DISTINCT 제약 검증
-- [ ] 5.3. 수동 동기화 테스트
+- [x] 5.1. 웹훅 curl 테스트 (3개 부서)
+- [x] 5.2. NULLS NOT DISTINCT 제약 검증
+- [x] 5.3. 수동 동기화 테스트 (schedule_survey 누락 버그 수정 포함)
+- [x] 5.6. 관리자 인증 플로우 검증 (bcryptjs edge runtime 버그, 쿠키 path 버그 수정)
+- [x] 5.7. 납부 토글 낙관적 업데이트 검증 (확인 모달 추가)
+- [x] 5.8. Vercel 환경변수 등록 및 배포
 - [ ] 5.4. GAS 연동 사전 준비
-  - 각 시트 `동기화 상태` 컬럼 추가
-  - Script Properties에 `DISCORD_WEBHOOK_URL` 저장
-  - Vercel 배포 후 WEBHOOK_URL 교체
-- [ ] 5.5. GAS 트리거 등록 (3개 부서, 스프레드시트 기반 트리거)
-- [ ] 5.6. 관리자 인증 플로우 검증
-- [ ] 5.7. 납부 토글 낙관적 업데이트 검증
-- [ ] 5.8. Vercel 환경변수 등록 및 배포
+  - 각 시트 마지막 열에 `동기화 상태` 컬럼 추가 (헤더만, 값은 자동 기입)
+  - GAS 스크립트 편집기에서 Script Properties 등록:
+    - `WEBHOOK_URL` = `https://<vercel-domain>/api/inquery/sync/webhook`
+    - `DISCORD_WEBHOOK_URL` = Discord webhook URL (선택)
+- [ ] 5.5. GAS 트리거 등록 (3개 부서 스프레드시트 각각)
+  - 트리거 유형: **스프레드시트 기반 → 폼 제출 시** (Forms 기반 아님)
+  - 실행 함수: `onFormSubmit`
 
 ---
 
