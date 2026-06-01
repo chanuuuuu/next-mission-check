@@ -113,7 +113,9 @@
   - 각 시트 마지막 열에 `동기화 상태` 컬럼 추가 (헤더만, 값은 자동 기입)
   - GAS 스크립트 편집기에서 Script Properties 등록:
     - `WEBHOOK_URL` = `https://<vercel-domain>/api/inquery/sync/webhook`
+    - `WEBHOOK_SECRET` = `openssl rand -hex 32` 으로 생성한 랜덤 문자열
     - `DISCORD_WEBHOOK_URL` = Discord webhook URL (선택)
+  - Vercel 환경변수에도 동일한 `WEBHOOK_SECRET` 값 등록 필수
 - [ ] 5.5. GAS 트리거 등록 (3개 부서 스프레드시트 각각)
   - 트리거 유형: **스프레드시트 기반 → 폼 제출 시** (Forms 기반 아님)
   - 실행 함수: `onFormSubmit`
