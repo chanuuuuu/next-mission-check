@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(rows)
   }
 
+  const useLikeSub2 = departmentMain === '청장년'
+
   // sub_department_2 파라미터가 없으면(null) 조건 무시, 빈 문자열('')이면 IS NULL
   const rows = subDept2 === null
     ? name
@@ -78,26 +80,47 @@ export async function GET(req: NextRequest) {
               AND sub_department_2 IS NULL
             ORDER BY name
           `) as MissionRegistration[]
-      : name
-        ? (await sql`
-            SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                   name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
-            FROM mission_registrations
-            WHERE department_main = ${departmentMain}
-              AND sub_department_1 = ${subDept1}
-              AND sub_department_2 = ${subDept2}
-              AND name = ${name}
-            ORDER BY name
-          `) as MissionRegistration[]
-        : (await sql`
-            SELECT id, department_main, sub_department_1, sub_department_2, small_group,
-                   name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
-            FROM mission_registrations
-            WHERE department_main = ${departmentMain}
-              AND sub_department_1 = ${subDept1}
-              AND sub_department_2 = ${subDept2}
-            ORDER BY name
-          `) as MissionRegistration[]
+      : useLikeSub2
+        ? name
+          ? (await sql`
+              SELECT id, department_main, sub_department_1, sub_department_2, small_group,
+                     name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
+              FROM mission_registrations
+              WHERE department_main = ${departmentMain}
+                AND sub_department_1 = ${subDept1}
+                AND sub_department_2 ILIKE ${'%' + subDept2 + '%'}
+                AND name = ${name}
+              ORDER BY name
+            `) as MissionRegistration[]
+          : (await sql`
+              SELECT id, department_main, sub_department_1, sub_department_2, small_group,
+                     name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
+              FROM mission_registrations
+              WHERE department_main = ${departmentMain}
+                AND sub_department_1 = ${subDept1}
+                AND sub_department_2 ILIKE ${'%' + subDept2 + '%'}
+              ORDER BY name
+            `) as MissionRegistration[]
+        : name
+          ? (await sql`
+              SELECT id, department_main, sub_department_1, sub_department_2, small_group,
+                     name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
+              FROM mission_registrations
+              WHERE department_main = ${departmentMain}
+                AND sub_department_1 = ${subDept1}
+                AND sub_department_2 = ${subDept2}
+                AND name = ${name}
+              ORDER BY name
+            `) as MissionRegistration[]
+          : (await sql`
+              SELECT id, department_main, sub_department_1, sub_department_2, small_group,
+                     name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey, payment_status
+              FROM mission_registrations
+              WHERE department_main = ${departmentMain}
+                AND sub_department_1 = ${subDept1}
+                AND sub_department_2 = ${subDept2}
+              ORDER BY name
+            `) as MissionRegistration[]
 
   return NextResponse.json(rows)
 }

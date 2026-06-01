@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
       const usePersonalCar = parseBooleanField(findByKeyword(mapping.use_personal_car))
       const useCarDuringMission = findByKeyword(mapping.use_car_during_mission) ?? null
       const useReturnBus = parseBooleanField(findByKeyword(mapping.use_return_bus))
+      const scheduleSurvey = findByKeyword(mapping.schedule_survey) ?? null
 
       if (!subDept1 || !name || !phoneRaw) {
         await sendSyncErrorAlert({ department, name, reason: '수동 동기화 중 필수 필드 누락' })
@@ -128,10 +129,10 @@ export async function POST(req: NextRequest) {
         await sql`
           INSERT INTO mission_registrations
             (department_main, sub_department_1, sub_department_2, small_group,
-             name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus)
+             name, phone_last_four, church_name, arrival_time, use_personal_car, use_car_during_mission, use_return_bus, schedule_survey)
           VALUES
             (${department}, ${subDept1}, ${subDept2}, ${smallGroup},
-             ${name}, ${phoneFour}, ${churchName}, ${arrivalTime}, ${usePersonalCar}, ${useCarDuringMission}, ${useReturnBus})
+             ${name}, ${phoneFour}, ${churchName}, ${arrivalTime}, ${usePersonalCar}, ${useCarDuringMission}, ${useReturnBus}, ${scheduleSurvey})
           ON CONFLICT ON CONSTRAINT uq_registration DO UPDATE SET
             department_main        = EXCLUDED.department_main,
             small_group            = EXCLUDED.small_group,
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
             use_personal_car       = EXCLUDED.use_personal_car,
             use_car_during_mission = EXCLUDED.use_car_during_mission,
             use_return_bus         = EXCLUDED.use_return_bus,
+            schedule_survey        = EXCLUDED.schedule_survey,
             updated_at             = NOW()
         `
         synced++
