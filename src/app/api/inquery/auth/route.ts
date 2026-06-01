@@ -23,8 +23,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
-    path: '/inquiry/admin',
-    // production에서 secure: true 적용
+    path: '/',
     secure: process.env.NODE_ENV === 'production',
   })
   return res
@@ -36,7 +35,7 @@ export async function DELETE() {
   res.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
     maxAge: 0,
-    path: '/inquiry/admin',
+    path: '/',
   })
   return res
 }
