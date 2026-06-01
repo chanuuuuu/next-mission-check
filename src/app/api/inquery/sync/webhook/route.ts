@@ -12,6 +12,11 @@ interface WebhookPayload {
 
 // POST /api/inquery/sync/webhook — GAS onSubmit 트리거에서 호출
 export async function POST(req: NextRequest) {
+  const secret = req.headers.get('x-webhook-secret')
+  if (!process.env.WEBHOOK_SECRET || secret !== process.env.WEBHOOK_SECRET) {
+    return NextResponse.json({ error: '인증 실패' }, { status: 401 })
+  }
+
   const body = await req.json() as WebhookPayload
   const { department, namedValues } = body
 

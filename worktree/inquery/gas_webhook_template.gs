@@ -32,10 +32,12 @@ const ALLOWED_KEYWORDS = [
 
 function onFormSubmit(e) {
   const namedValues = e.namedValues
-  const webhookUrl = PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL')
-  const department = PropertiesService.getScriptProperties().getProperty('DEPARTMENT')
-  if (!webhookUrl || !department) {
-    Logger.log('WEBHOOK_URL 또는 DEPARTMENT가 Script Properties에 설정되지 않았습니다.')
+  const props = PropertiesService.getScriptProperties()
+  const webhookUrl = props.getProperty('WEBHOOK_URL')
+  const department = props.getProperty('DEPARTMENT')
+  const webhookSecret = props.getProperty('WEBHOOK_SECRET')
+  if (!webhookUrl || !department || !webhookSecret) {
+    Logger.log('WEBHOOK_URL, DEPARTMENT, WEBHOOK_SECRET 중 설정되지 않은 항목이 있습니다.')
     return
   }
 
@@ -56,6 +58,7 @@ function onFormSubmit(e) {
       const response = UrlFetchApp.fetch(webhookUrl, {
         method: 'post',
         contentType: 'application/json',
+        headers: { 'X-Webhook-Secret': webhookSecret },
         payload: payload,
         muteHttpExceptions: true,
       })

@@ -7,6 +7,7 @@ export const runtime = 'edge'
 // GET /api/inquery/registrations
 // ?department_main=&sub_department_1=&sub_department_2=&name=
 export async function GET(req: NextRequest) {
+  const isAdmin = req.cookies.get('inquery_admin_session')?.value === 'authenticated'
   const { searchParams } = req.nextUrl
   const departmentMain = searchParams.get('department_main')
   const subDept1 = searchParams.get('sub_department_1')
@@ -122,7 +123,8 @@ export async function GET(req: NextRequest) {
               ORDER BY name
             `) as MissionRegistration[]
 
-  return NextResponse.json(rows)
+  const result = isAdmin ? rows : rows.slice(0, 30)
+  return NextResponse.json(result)
 }
 
 // POST /api/inquery/registrations — 관리자 수동 대원 추가

@@ -6,7 +6,12 @@ export const runtime = 'edge'
 type RouteContext = { params: Promise<{ id: string }> }
 
 // PATCH /api/inquery/registrations/[id]/payment — 납부 상태 토글
-export async function PATCH(_req: NextRequest, { params }: RouteContext) {
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
+  const cookie = req.cookies.get('inquery_admin_session')
+  if (!cookie || cookie.value !== 'authenticated') {
+    return NextResponse.json({ error: '인증 필요' }, { status: 401 })
+  }
+
   const { id } = await params
 
   const rows = (await sql`
