@@ -9,21 +9,45 @@
  *     - 이벤트 유형: 양식 제출 시
  */
 
-const DEPARTMENT = '2청' // '2청' | '기타부서' | '청장년' 중 하나로 변경
 const SYNC_STATUS_COLUMN = '동기화 상태'
 const MAX_RETRIES = 3
+
+// 웹훅으로 전송할 컬럼 키워드 화이트리스트 (form-mapping.ts 기준)
+// 매칭되지 않는 컬럼(주민등록번호, 주소 등)은 전송하지 않음
+const ALLOWED_KEYWORDS = [
+  '소속부서(진)',       // 2청 sub1
+  '소속부서(팀)',       // 2청 sub2
+  '소속부서',           // 기타부서 sub1
+  '세부소속(진)',       // 청장년 sub1
+  '연계교회 이름',      // 2청 church_name, 청장년 sub2
+  '소속 목장 이름',     // 청장년 small_group
+  '등록자 이름',        // name
+  '핸드폰 번호',        // phone_last_four
+  '참여 일정 및 이동수단 조사',  // schedule_survey
+  '연계교회 도착 예상시간',      // arrival_time
+  '자차를 가져 오시나요',        // use_personal_car
+  '선교 기간 중 자차를 이용하시나요', // use_car_during_mission
+  '교회 버스에 탑승하시나요',    // use_return_bus
+]
 
 function onFormSubmit(e) {
   const namedValues = e.namedValues
   const webhookUrl = PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL')
-  if (!webhookUrl) {
-    Logger.log('WEBHOOK_URL이 Script Properties에 설정되지 않았습니다.')
+  const department = PropertiesService.getScriptProperties().getProperty('DEPARTMENT')
+  if (!webhookUrl || !department) {
+    Logger.log('WEBHOOK_URL 또는 DEPARTMENT가 Script Properties에 설정되지 않았습니다.')
     return
   }
 
+  const filteredValues = Object.fromEntries(
+    Object.entries(namedValues).filter(([key]) =>
+      ALLOWED_KEYWORDS.some(kw => key.includes(kw))
+    )
+  )
+
   const payload = JSON.stringify({
-    department: DEPARTMENT,
-    namedValues: namedValues,
+    department: department,
+    namedValues: filteredValues,
   })
 
   let success = false
@@ -65,7 +89,7 @@ function onFormSubmit(e) {
         payload: JSON.stringify({
           username: '선교 등록 시스템',
           embeds: [{
-            title: `⚠️ 동기화 실패 — ${DEPARTMENT}`,
+            title: `⚠️ 동기화 실패 — ${department}`,
             color: 16711748,
             fields: [
               { name: '대상', value: name, inline: true },
