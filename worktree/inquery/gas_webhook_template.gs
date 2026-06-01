@@ -9,13 +9,17 @@
  *     - 이벤트 유형: 양식 제출 시
  */
 
-const WEBHOOK_URL = 'https://[YOUR_DOMAIN]/api/inquery/sync/webhook'
 const DEPARTMENT = '2청' // '2청' | '기타부서' | '청장년' 중 하나로 변경
 const SYNC_STATUS_COLUMN = '동기화 상태'
 const MAX_RETRIES = 3
 
 function onFormSubmit(e) {
   const namedValues = e.namedValues
+  const webhookUrl = PropertiesService.getScriptProperties().getProperty('WEBHOOK_URL')
+  if (!webhookUrl) {
+    Logger.log('WEBHOOK_URL이 Script Properties에 설정되지 않았습니다.')
+    return
+  }
 
   const payload = JSON.stringify({
     department: DEPARTMENT,
@@ -25,7 +29,7 @@ function onFormSubmit(e) {
   let success = false
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = UrlFetchApp.fetch(WEBHOOK_URL, {
+      const response = UrlFetchApp.fetch(webhookUrl, {
         method: 'post',
         contentType: 'application/json',
         payload: payload,
