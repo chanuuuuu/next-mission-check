@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Car, Bus } from "lucide-react";
 import type { MissionRegistration } from "@/types";
 
@@ -60,6 +61,7 @@ export function RegistrationList({ rows, isFetching, renderPayment }: Props) {
               <TransportRow
                 label="서울→영동"
                 value={r.use_personal_car}
+                independent={isIndependentTravel(r.schedule_survey)}
                 trueIcon={<Car size={14} />}
                 trueText="자차"
                 falseIcon={<Bus size={14} />}
@@ -69,6 +71,7 @@ export function RegistrationList({ rows, isFetching, renderPayment }: Props) {
               <TransportRow
                 label="영동→서울"
                 value={r.use_return_bus}
+                independent={isIndependentTravel(r.schedule_survey)}
                 trueIcon={<Bus size={14} />}
                 trueText="교회버스"
                 falseIcon={<Car size={14} />}
@@ -130,18 +133,12 @@ export function RegistrationList({ rows, isFetching, renderPayment }: Props) {
                   {/* 서울→영동 강조 */}
                   <td className="px-4 py-3 whitespace-nowrap font-display font-bold">
                     <span className="inline-flex items-center gap-1">
-                      {r.use_personal_car === null ? (
-                        <span className="text-muted-foreground/50 font-normal">
-                          -
-                        </span>
-                      ) : r.use_personal_car ? (
-                        <>
-                          <Car size={14} /> 자차
-                        </>
+                      {r.use_personal_car === true ? (
+                        <><Car size={14} /> 자차</>
+                      ) : isIndependentTravel(r.schedule_survey) ? (
+                        <span className="text-muted-foreground/50 font-normal">-</span>
                       ) : (
-                        <>
-                          <Bus size={14} /> 교회버스
-                        </>
+                        <><Bus size={14} /> 교회버스</>
                       )}
                     </span>
                   </td>
@@ -151,18 +148,12 @@ export function RegistrationList({ rows, isFetching, renderPayment }: Props) {
                   {/* 영동→서울 강조 */}
                   <td className="px-4 py-3 whitespace-nowrap font-display font-bold">
                     <span className="inline-flex items-center gap-1">
-                      {r.use_return_bus === null ? (
-                        <span className="text-muted-foreground/50 font-normal">
-                          -
-                        </span>
-                      ) : r.use_return_bus ? (
-                        <>
-                          <Bus size={14} /> 교회버스
-                        </>
+                      {r.use_return_bus === true ? (
+                        <><Bus size={14} /> 교회버스</>
+                      ) : isIndependentTravel(r.schedule_survey) ? (
+                        <span className="text-muted-foreground/50 font-normal">-</span>
                       ) : (
-                        <>
-                          <Car size={14} /> 자차
-                        </>
+                        <><Car size={14} /> 자차</>
                       )}
                     </span>
                   </td>
@@ -181,9 +172,14 @@ export function RegistrationList({ rows, isFetching, renderPayment }: Props) {
   );
 }
 
+function isIndependentTravel(scheduleSurvey: string | null): boolean {
+  return !!scheduleSurvey && scheduleSurvey.includes("개별이동");
+}
+
 function TransportRow({
   label,
   value,
+  independent,
   trueIcon,
   trueText,
   falseIcon,
@@ -192,13 +188,15 @@ function TransportRow({
 }: {
   label: string;
   value: boolean | null;
+  independent: boolean;
   trueIcon: React.ReactNode;
   trueText: string;
   falseIcon: React.ReactNode;
   falseText: string;
   emphasize?: boolean;
 }) {
-  if (value === null) return null;
+  const effective = value === true ? true : independent ? null : false;
+
   return (
     <div className="flex items-center gap-1">
       <span className="text-[10px] text-muted-foreground shrink-0">
@@ -210,8 +208,13 @@ function TransportRow({
           (emphasize ? "text-sm text-foreground" : "text-xs")
         }
       >
-        {value ? trueIcon : falseIcon}
-        {value ? trueText : falseText}
+        {effective === null ? (
+          <span className="text-muted-foreground/50 font-normal">-</span>
+        ) : effective ? (
+          <>{trueIcon}{trueText}</>
+        ) : (
+          <>{falseIcon}{falseText}</>
+        )}
       </span>
     </div>
   );
@@ -236,28 +239,68 @@ export function PaymentToggle({
   paid: boolean;
   onToggle: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="inline-flex items-center gap-2 shrink-0"
-      aria-label="납부 상태 토글"
-    >
-      <PaymentBadge paid={paid} />
-      <span
-        className={
-          "relative inline-block w-8 h-4 border-2 border-foreground transition-colors " +
-          (paid ? "bg-foreground" : "bg-background")
-        }
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="inline-flex items-center gap-2 shrink-0"
+        aria-label="납부 상태 토글"
       >
+        <PaymentBadge paid={paid} />
         <span
           className={
-            "absolute top-0.5 w-2 h-2 transition-all " +
-            (paid ? "left-[14px] bg-background" : "left-0.5 bg-brand")
+            "relative inline-block w-8 h-4 border-2 border-foreground transition-colors " +
+            (paid ? "bg-foreground" : "bg-background")
           }
-        />
-      </span>
-    </button>
+        >
+          <span
+            className={
+              "absolute top-0.5 w-2 h-2 transition-all " +
+              (paid ? "left-[18px] bg-background" : "left-0.5 bg-brand")
+            }
+          />
+        </span>
+      </button>
+
+      {confirming && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setConfirming(false)}
+        >
+          <div
+            className="bg-background border-2 border-foreground p-6 w-72"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-display font-bold text-sm">납부 상태 변경</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {paid
+                ? "납부 완료 → 납부 필요 로 변경하시겠습니까?"
+                : "납부 필요 → 납부 완료 로 변경하시겠습니까?"}
+            </p>
+            <div className="mt-5 flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-4 py-2 text-xs font-display font-bold border border-foreground hover:bg-muted transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setConfirming(false);
+                  onToggle();
+                }}
+                className="px-4 py-2 text-xs font-display font-bold bg-foreground text-background hover:bg-brand hover:border-brand transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
