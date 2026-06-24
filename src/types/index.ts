@@ -2,6 +2,8 @@ export interface Church {
   id: number
   name: string
   address: string | null
+  team_name: string | null
+  team_type: string | null
   created_at: string
 }
 
