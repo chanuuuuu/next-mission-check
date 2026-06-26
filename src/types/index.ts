@@ -4,6 +4,7 @@ export interface Church {
   address: string | null
   team_name: string | null
   team_type: string | null
+  jin_name: string | null
   created_at: string
 }
 

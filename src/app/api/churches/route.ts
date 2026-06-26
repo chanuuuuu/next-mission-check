@@ -3,7 +3,7 @@ import { Church } from '@/types'
 
 export async function GET() {
   const rows = (await sql`
-    SELECT id, name, address, team_name, team_type, created_at
+    SELECT id, name, address, team_name, team_type, jin_name, created_at
     FROM churches
     ORDER BY name ASC
   `) as Church[]

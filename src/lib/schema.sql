@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS churches (
     address    TEXT,
     team_name  VARCHAR(50),
     team_type  VARCHAR(20),
+    jin_name   VARCHAR(20),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
