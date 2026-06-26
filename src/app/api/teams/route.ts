@@ -11,6 +11,7 @@ export async function GET() {
       c.name         AS church_name,
       c.team_name,
       c.team_type,
+      c.jin_name,
       t.headcount,
       t.accumulated_score
     FROM teams t
