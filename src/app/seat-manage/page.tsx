@@ -14,30 +14,58 @@ export default async function SeatingPage() {
         c.name         AS church_name,
         c.team_name,
         c.team_type,
+        c.jin_name,
         t.headcount,
         t.accumulated_score
       FROM teams t
       JOIN churches c ON t.church_id = c.id
       ORDER BY t.accumulated_score ASC
     `.then(r => r as Team[]),
-    sql`SELECT id FROM phases ORDER BY phase_number DESC LIMIT 1`.then(r => r as { id: number }[]),
+    sql`SELECT id, assignment_mode FROM phases ORDER BY phase_number DESC LIMIT 1`.then(
+      r => r as { id: number; assignment_mode: 'team' | 'jin' }[],
+    ),
   ])
 
-  let savedAssignments: Record<string, number> = {}
   const [latestPhase] = phases
-  if (latestPhase) {
-    const rows = (await sql`
-      SELECT team_id, assigned_seats
-      FROM seat_assignments
-      WHERE phase_id = ${latestPhase.id}
-    `) as { team_id: number; assigned_seats: string[] }[]
+  const savedMode = latestPhase?.assignment_mode ?? 'team'
 
-    for (const row of rows) {
-      for (const key of row.assigned_seats) {
-        savedAssignments[key] = row.team_id
+  let savedAssignments: Record<string, number> = {}
+  let savedJinAssignments: Record<string, string> = {}
+
+  if (latestPhase) {
+    if (savedMode === 'jin') {
+      const rows = (await sql`
+        SELECT jin_name, assigned_seats
+        FROM seat_assignments
+        WHERE phase_id = ${latestPhase.id}
+      `) as { jin_name: string; assigned_seats: string[] }[]
+
+      for (const row of rows) {
+        for (const key of row.assigned_seats) {
+          savedJinAssignments[key] = row.jin_name
+        }
+      }
+    } else {
+      const rows = (await sql`
+        SELECT team_id, assigned_seats
+        FROM seat_assignments
+        WHERE phase_id = ${latestPhase.id}
+      `) as { team_id: number; assigned_seats: string[] }[]
+
+      for (const row of rows) {
+        for (const key of row.assigned_seats) {
+          savedAssignments[key] = row.team_id
+        }
       }
     }
   }
 
-  return <AdminClient initialTeams={teams} savedAssignments={savedAssignments} />
+  return (
+    <AdminClient
+      initialTeams={teams}
+      savedAssignments={savedAssignments}
+      savedJinAssignments={savedJinAssignments}
+      savedMode={savedMode}
+    />
+  )
 }

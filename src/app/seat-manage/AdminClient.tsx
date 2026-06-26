@@ -1,26 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Eye, Play, RotateCcw, Save, Settings2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateSeating } from "./utils/seatingAlgorithm";
+import { buildJinUnits, jinUnitsToFakeTeams, algoResultsToJinResults } from "./utils/jinGrouping";
 import { FLOORS, type FloorDef, type SectionDef } from "./config/seatLayout";
 import { getBaseScore, isSeatDisabled } from "./config/seatScores";
 import { computeTeamColors } from "./config/teamColors";
-import type { Team, AlgoResult } from "@/types/seating";
+import type { Team, AlgoResult, JinUnit, JinAlgoResult } from "@/types/seating";
 
 interface Props {
   initialTeams: Team[];
   savedAssignments: Record<string, number>;
+  savedJinAssignments: Record<string, string>;
+  savedMode: 'team' | 'jin';
 }
 
 type Notice = { type: "ok" | "err"; msg: string };
 
-export default function AdminClient({ initialTeams, savedAssignments }: Props) {
+export default function AdminClient({ initialTeams, savedAssignments, savedJinAssignments, savedMode }: Props) {
   const [teams, setTeams] = useState<Team[]>(initialTeams);
+  const [mode, setMode] = useState<'team' | 'jin'>(savedMode);
   const [assignments, setAssignments] = useState<Record<string, number>>({});
   const [algoResults, setAlgoResults] = useState<AlgoResult[]>([]);
+  const [jinAlgoResults, setJinAlgoResults] = useState<JinAlgoResult[]>([]);
   const [isDirtyHeadcount, setIsDirtyHeadcount] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -31,11 +36,39 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
   const [newKey, setNewKey] = useState("");
   const [newDelta, setNewDelta] = useState("");
 
+  // Tracks the most recently saved assignment so clearAssignments always restores
+  // the latest saved state, even if a new save happened during this session.
+  const lastSaved = useRef<{ mode: 'team' | 'jin'; assignments: Record<string, number> }>({
+    mode: savedMode,
+    assignments: {},
+  });
+
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 3500);
     return () => clearTimeout(t);
   }, [notice]);
+
+  // Auto-initialize from saved assignment on mount so the previous layout is visible immediately.
+  useEffect(() => {
+    if (savedMode === 'jin') {
+      if (!Object.keys(savedJinAssignments).length) return;
+      const units = buildJinUnits(initialTeams);
+      const idMap = new Map(units.map((u) => [u.jinName, u.syntheticId]));
+      const next: Record<string, number> = {};
+      for (const [key, jinName] of Object.entries(savedJinAssignments)) {
+        next[key] = idMap.get(jinName) ?? -1;
+      }
+      lastSaved.current = { mode: 'jin', assignments: next };
+      setAssignments(next);
+      setIsPreviousView(true);
+    } else {
+      if (!Object.keys(savedAssignments).length) return;
+      lastSaved.current = { mode: 'team', assignments: savedAssignments };
+      setAssignments(savedAssignments);
+      setIsPreviousView(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     try {
@@ -65,7 +98,32 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
     });
   }
 
-  const teamMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  const jinUnits = useMemo(() => buildJinUnits(teams), [teams]);
+  const jinSyntheticIdMap = useMemo(
+    () => new Map(jinUnits.map((u) => [u.jinName, u.syntheticId])),
+    [jinUnits],
+  );
+
+  // teamMap includes fake entries for jin syntheticIds so FloorView renders correctly
+  const teamMap = useMemo(() => {
+    const map = new Map(teams.map((t) => [t.id, t]));
+    if (mode === 'jin') {
+      for (const u of jinUnits) {
+        map.set(u.syntheticId, {
+          id: u.syntheticId,
+          church_id: -1,
+          church_name: u.jinName,
+          team_name: null,
+          team_type: u.team_type,
+          jin_name: u.jinName,
+          headcount: u.headcount,
+          accumulated_score: u.accumulated_score,
+        });
+      }
+    }
+    return map;
+  }, [teams, mode, jinUnits]);
+
   const teamColorMap = useMemo(
     () => computeTeamColors(assignments),
     [assignments],
@@ -82,9 +140,16 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
     () => new Map(algoResults.map((r) => [r.teamId, r.earnedScore])),
     [algoResults],
   );
+  const jinEarnedScoreMap = useMemo(
+    () => new Map(jinAlgoResults.map((r) => [r.syntheticId, r.earnedScore])),
+    [jinAlgoResults],
+  );
 
   const assignedTotal = Object.keys(assignments).length;
-  const totalDemand = teams.reduce((s, t) => s + t.headcount, 0);
+  const totalDemand =
+    mode === 'jin'
+      ? jinUnits.reduce((s, u) => s + u.headcount, 0)
+      : teams.reduce((s, t) => s + t.headcount, 0);
 
   const totalSeats = useMemo(() => {
     let n = 0;
@@ -127,7 +192,32 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
     }
   }
 
+  function switchMode(next: 'team' | 'jin') {
+    if (next === mode) return;
+    setMode(next);
+    setAlgoResults([]);
+    setJinAlgoResults([]);
+    setAssignments({});
+    setHighlightTeamId(null);
+    setIsPreviousView(false);
+  }
+
   function runAlgorithm() {
+    if (mode === 'jin') {
+      const fakeTeams = jinUnitsToFakeTeams(jinUnits);
+      const results = generateSeating(fakeTeams, overrides, { jinMode: true });
+      const jinResults = algoResultsToJinResults(results, jinUnits);
+      setJinAlgoResults(jinResults);
+      setAlgoResults(results);
+      const next: Record<string, number> = {};
+      for (const r of results) for (const key of r.seatKeys) next[key] = r.teamId;
+      setAssignments(next);
+      setIsPreviousView(false);
+      const placed = jinResults.length;
+      setNotice({ type: "ok", msg: `${placed}진 · ${Object.keys(next).length}석 배정 완료` });
+      return;
+    }
+
     const results = generateSeating(teams, overrides);
     setAlgoResults(results);
     const next: Record<string, number> = {};
@@ -143,14 +233,51 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
 
   function clearAssignments() {
     setAlgoResults([]);
-    setAssignments(savedAssignments);
-    setIsPreviousView(Object.keys(savedAssignments).length > 0);
-    if (!Object.keys(savedAssignments).length) {
+    setJinAlgoResults([]);
+    setHighlightTeamId(null);
+    const { mode: m, assignments: a } = lastSaved.current;
+    setMode(m);
+    setAssignments({ ...a });
+    setIsPreviousView(Object.keys(a).length > 0);
+    if (!Object.keys(a).length) {
       setNotice({ type: "err", msg: "저장된 배치 결과가 없습니다" });
     }
   }
 
   async function saveResults() {
+    if (mode === 'jin') {
+      if (!jinAlgoResults.length) {
+        setNotice({ type: "err", msg: "먼저 자동 배치를 실행해주세요" });
+        return;
+      }
+      setIsSaving(true);
+      try {
+        const res = await fetch("/api/seat-assignments/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: 'jin', jinResults: jinAlgoResults }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          lastSaved.current = { mode: 'jin', assignments: { ...assignments } };
+          setTeams((prev) =>
+            prev.map((t) => {
+              const updated = data.teams?.find(
+                (u: { id: number; accumulated_score: number }) => u.id === t.id,
+              );
+              return updated ? { ...t, accumulated_score: updated.accumulated_score } : t;
+            }),
+          );
+          setNotice({ type: "ok", msg: "배치 결과 저장 완료" });
+        } else {
+          setNotice({ type: "err", msg: "저장 실패" });
+        }
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
     if (!algoResults.length) {
       setNotice({ type: "err", msg: "먼저 자동 배치를 실행해주세요" });
       return;
@@ -164,6 +291,7 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
       });
       if (res.ok) {
         const data = await res.json();
+        lastSaved.current = { mode: 'team', assignments: { ...assignments } };
         setTeams((prev) =>
           prev.map((t) => {
             const updated = data.teams?.find(
@@ -186,6 +314,10 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
   const sortedTeams = useMemo(
     () => [...teams].sort((a, b) => a.accumulated_score - b.accumulated_score),
     [teams],
+  );
+  const sortedJinUnits = useMemo(
+    () => [...jinUnits].sort((a, b) => a.accumulated_score - b.accumulated_score),
+    [jinUnits],
   );
 
   return (
@@ -226,7 +358,7 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
             </span>
 
             <span className="border border-foreground px-3 py-1 tracking-widest">
-              {teams.length}팀 · {totalDemand}명
+              {mode === 'jin' ? `${jinUnits.length}진` : `${teams.length}팀`} · {totalDemand}명
             </span>
             <Link
               href="/seat"
@@ -242,6 +374,32 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-px bg-foreground">
         {/* Sidebar */}
         <aside className="bg-background p-6 space-y-6">
+          {/* Mode toggle */}
+          <div className="grid grid-cols-2 border border-foreground">
+            <button
+              onClick={() => switchMode('team')}
+              className={cn(
+                "font-display font-bold text-xs py-2 tracking-wider transition-colors",
+                mode === 'team'
+                  ? "bg-foreground text-background"
+                  : "hover:bg-foreground/10",
+              )}
+            >
+              팀별
+            </button>
+            <button
+              onClick={() => switchMode('jin')}
+              className={cn(
+                "font-display font-bold text-xs py-2 tracking-wider transition-colors border-l border-foreground",
+                mode === 'jin'
+                  ? "bg-foreground text-background"
+                  : "hover:bg-foreground/10",
+              )}
+            >
+              진별
+            </button>
+          </div>
+
           {/* Actions */}
           <div className="space-y-2">
             <button
@@ -269,88 +427,154 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
             </button>
           </div>
 
-          {/* Teams list */}
+          {/* Teams / Jins list */}
           <div className="border-t border-foreground pt-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-foreground/50">
-                Teams · 누적점수순
-              </span>
-              {isDirtyHeadcount && (
-                <button
-                  onClick={saveHeadcounts}
-                  className="text-[10px] font-display font-bold tracking-wider border border-foreground px-2 py-1 hover:bg-foreground hover:text-background transition-colors"
-                >
-                  인원 저장
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-[12px_1fr_48px_28px_34px_34px] gap-2 px-1 mb-1 text-[9px] font-display tracking-wider uppercase text-foreground/50">
-              <span />
-              <span>교회</span>
-              <span>인원</span>
-              <span>배치</span>
-              <span>획득</span>
-              <span>누적</span>
-            </div>
-
-            <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
-              {sortedTeams.map((t) => {
-                const earned = earnedScoreMap.get(t.id);
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() =>
-                      setHighlightTeamId((prev) =>
-                        prev === t.id ? null : t.id,
-                      )
-                    }
-                    className={cn(
-                      "grid grid-cols-[12px_1fr_48px_28px_34px_34px] gap-2 items-center cursor-pointer -mx-1 px-1 py-0.5 transition-colors",
-                      highlightTeamId === t.id
-                        ? "bg-foreground/15 ring-1 ring-inset ring-foreground"
-                        : "hover:bg-foreground/8",
-                    )}
-                  >
-                    <span
-                      className="h-3 w-3 shrink-0 border border-foreground/50"
-                      style={{
-                        background: teamColorMap.get(t.id) ?? "oklch(0.88 0 0)",
-                      }}
-                    />
-                    <div className="min-w-0">
-                      <div className="font-display text-xs font-bold truncate">
-                        {t.church_name}
-                      </div>
-                      {t.team_name && (
-                        <div className="text-[10px] text-foreground/50 truncate">
-                          {t.team_name}
+            {mode === 'jin' ? (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-foreground/50">
+                    Jins · 누적점수순
+                  </span>
+                </div>
+                <div className="grid grid-cols-[12px_1fr_40px_28px_34px_34px] gap-2 px-1 mb-1 text-[9px] font-display tracking-wider uppercase text-foreground/50">
+                  <span />
+                  <span>진</span>
+                  <span>인원</span>
+                  <span>배치</span>
+                  <span>획득</span>
+                  <span>누적</span>
+                </div>
+                <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
+                  {sortedJinUnits.map((u) => {
+                    const earned = jinEarnedScoreMap.get(u.syntheticId);
+                    return (
+                      <div
+                        key={u.jinName}
+                        onClick={() =>
+                          setHighlightTeamId((prev) =>
+                            prev === u.syntheticId ? null : u.syntheticId,
+                          )
+                        }
+                        className={cn(
+                          "grid grid-cols-[12px_1fr_40px_28px_34px_34px] gap-2 items-center cursor-pointer -mx-1 px-1 py-0.5 transition-colors",
+                          highlightTeamId === u.syntheticId
+                            ? "bg-foreground/15 ring-1 ring-inset ring-foreground"
+                            : "hover:bg-foreground/8",
+                        )}
+                      >
+                        <span
+                          className="h-3 w-3 shrink-0 border border-foreground/50"
+                          style={{
+                            background: teamColorMap.get(u.syntheticId) ?? "oklch(0.88 0 0)",
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="font-display text-xs font-bold truncate">
+                            {u.jinName}
+                          </div>
+                          <div className="text-[10px] text-foreground/50 truncate">
+                            {u.memberTeamIds.length}교회
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      max={60}
-                      value={t.headcount}
-                      onChange={(e) =>
-                        updateHeadcount(t.id, parseInt(e.target.value) || 1)
-                      }
-                      className="w-full h-7 px-2 text-xs font-display border border-foreground/30 bg-background focus:border-foreground focus:outline-none text-right"
-                    />
-                    <span className="text-[10px] font-display tabular-nums text-foreground/60 text-right">
-                      {seatCountMap.get(t.id) ?? 0}
-                    </span>
-                    <span className="text-[10px] font-display tabular-nums text-right">
-                      {earned !== undefined ? earned.toFixed(1) : "–"}
-                    </span>
-                    <span className="text-[10px] font-display tabular-nums text-foreground/60 text-right">
-                      {Math.round(t.accumulated_score)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                        <span className="text-[10px] font-display tabular-nums text-right text-foreground/60">
+                          {u.headcount}
+                        </span>
+                        <span className="text-[10px] font-display tabular-nums text-foreground/60 text-right">
+                          {seatCountMap.get(u.syntheticId) ?? 0}
+                        </span>
+                        <span className="text-[10px] font-display tabular-nums text-right">
+                          {earned !== undefined ? earned.toFixed(1) : "–"}
+                        </span>
+                        <span className="text-[10px] font-display tabular-nums text-foreground/60 text-right">
+                          {Math.round(u.accumulated_score)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-foreground/50">
+                    Teams · 누적점수순
+                  </span>
+                  {isDirtyHeadcount && (
+                    <button
+                      onClick={saveHeadcounts}
+                      className="text-[10px] font-display font-bold tracking-wider border border-foreground px-2 py-1 hover:bg-foreground hover:text-background transition-colors"
+                    >
+                      인원 저장
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-[12px_1fr_48px_28px_34px_34px] gap-2 px-1 mb-1 text-[9px] font-display tracking-wider uppercase text-foreground/50">
+                  <span />
+                  <span>교회</span>
+                  <span>인원</span>
+                  <span>배치</span>
+                  <span>획득</span>
+                  <span>누적</span>
+                </div>
+                <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
+                  {sortedTeams.map((t) => {
+                    const earned = earnedScoreMap.get(t.id);
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() =>
+                          setHighlightTeamId((prev) =>
+                            prev === t.id ? null : t.id,
+                          )
+                        }
+                        className={cn(
+                          "grid grid-cols-[12px_1fr_48px_28px_34px_34px] gap-2 items-center cursor-pointer -mx-1 px-1 py-0.5 transition-colors",
+                          highlightTeamId === t.id
+                            ? "bg-foreground/15 ring-1 ring-inset ring-foreground"
+                            : "hover:bg-foreground/8",
+                        )}
+                      >
+                        <span
+                          className="h-3 w-3 shrink-0 border border-foreground/50"
+                          style={{
+                            background: teamColorMap.get(t.id) ?? "oklch(0.88 0 0)",
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="font-display text-xs font-bold truncate">
+                            {t.church_name}
+                          </div>
+                          {t.team_name && (
+                            <div className="text-[10px] text-foreground/50 truncate">
+                              {t.team_name}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={t.headcount}
+                          onChange={(e) =>
+                            updateHeadcount(t.id, parseInt(e.target.value) || 1)
+                          }
+                          className="w-full h-7 px-2 text-xs font-display border border-foreground/30 bg-background focus:border-foreground focus:outline-none text-right"
+                        />
+                        <span className="text-[10px] font-display tabular-nums text-foreground/60 text-right">
+                          {seatCountMap.get(t.id) ?? 0}
+                        </span>
+                        <span className="text-[10px] font-display tabular-nums text-right">
+                          {earned !== undefined ? earned.toFixed(1) : "–"}
+                        </span>
+                        <span className="text-[10px] font-display tabular-nums text-foreground/60 text-right">
+                          {Math.round(t.accumulated_score)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Score Overrides */}
