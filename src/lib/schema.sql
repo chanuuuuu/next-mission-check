@@ -78,22 +78,25 @@ CREATE TABLE IF NOT EXISTS teams (
 
 -- 배치 회차 관리
 CREATE TABLE IF NOT EXISTS phases (
-    id            SERIAL PRIMARY KEY,
-    phase_number  INT    NOT NULL UNIQUE,
-    description   VARCHAR(255),
-    created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    id              SERIAL PRIMARY KEY,
+    phase_number    INT    NOT NULL UNIQUE,
+    description     VARCHAR(255),
+    assignment_mode VARCHAR(10) NOT NULL DEFAULT 'team', -- 'team' | 'jin'
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 좌석 배치 결과
 CREATE TABLE IF NOT EXISTS seat_assignments (
     id             SERIAL PRIMARY KEY,
     phase_id       INT        NOT NULL REFERENCES phases(id)  ON DELETE CASCADE,
-    team_id        INT        NOT NULL REFERENCES teams(id)   ON DELETE CASCADE,
+    team_id        INT        REFERENCES teams(id) ON DELETE CASCADE, -- NULL for jin mode
+    jin_name       VARCHAR(20),                 -- set when assignment_mode = 'jin'
     floor          INT        NOT NULL,          -- 1 또는 2
     block          VARCHAR(2) NOT NULL,          -- 'A' | 'B' | 'C' | 'D'
     assigned_seats JSONB      NOT NULL,          -- ["1F_A_R1_C1", ...]
     earned_score   FLOAT      NOT NULL,
-    created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_seat_unit CHECK (team_id IS NOT NULL OR jin_name IS NOT NULL)
 );
 
 CREATE INDEX IF NOT EXISTS idx_seat_assignments_phase_team ON seat_assignments (phase_id, team_id);
