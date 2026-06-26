@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { MapPin, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  FLOORS,
-  type FloorDef,
-  type SectionDef,
-} from "../seat-manage/config/seatLayout";
-import { isSeatDisabled } from "../seat-manage/config/seatScores";
+import { FLOORS } from "../seat-manage/config/seatLayout";
 import { computeTeamColors } from "../seat-manage/config/teamColors";
+import { MobileFloorView } from "./SeatGrid";
 import type { Team } from "@/types/seating";
 
 interface Props {
   teams: Team[];
   assignments: Record<string, number>;
+  teamToJinId?: Record<number, number>;
 }
 
 type FloorTab = "1F" | "2F";
@@ -58,7 +56,7 @@ function locateTeam(
     .map((g) => ({ ...g, rowIndices: g.rowIndices.sort((a, b) => a - b) }));
 }
 
-export default function ViewClient({ teams, assignments }: Props) {
+export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
   const [query, setQuery] = useState("");
   const [floorTab, setFloorTab] = useState<FloorTab>("1F");
 
@@ -73,9 +71,18 @@ export default function ViewClient({ teams, assignments }: Props) {
     return teams.find((t) => t.church_name.includes(q)) ?? null;
   }, [query, teams]);
 
+  // In jin mode, resolve to the syntheticId of the matched team's jin
+  const effectiveId = useMemo(() => {
+    if (!matchedTeam) return null;
+    if (teamToJinId && teamToJinId[matchedTeam.id] !== undefined) {
+      return teamToJinId[matchedTeam.id];
+    }
+    return matchedTeam.id;
+  }, [matchedTeam, teamToJinId]);
+
   const located = useMemo(
-    () => (matchedTeam ? locateTeam(assignments, matchedTeam.id) : []),
-    [matchedTeam, assignments],
+    () => (effectiveId !== null ? locateTeam(assignments, effectiveId) : []),
+    [effectiveId, assignments],
   );
 
   const primaryFloor = located[0]?.floor ?? "1F";
@@ -85,10 +92,10 @@ export default function ViewClient({ teams, assignments }: Props) {
   }, [matchedTeam, primaryFloor, located.length]);
 
   useEffect(() => {
-    if (!matchedTeam) return;
+    if (!matchedTeam || effectiveId === null) return;
     const t = setTimeout(() => {
       const els = document.querySelectorAll<HTMLElement>(
-        `[data-team-highlight="${matchedTeam.id}"]`,
+        `[data-team-highlight="${effectiveId}"]`,
       );
       if (!els.length) return;
 
@@ -126,19 +133,24 @@ export default function ViewClient({ teams, assignments }: Props) {
       }
     }, 150);
     return () => clearTimeout(t);
-  }, [matchedTeam, floorTab]);
+  }, [matchedTeam, effectiveId, floorTab]);
 
-  const highlightTeamId = matchedTeam?.id ?? null;
-  const totalSeats = matchedTeam
-    ? Object.values(assignments).filter((tid) => tid === matchedTeam.id).length
-    : 0;
+  const highlightTeamId = effectiveId;
+  const totalSeats =
+    effectiveId !== null
+      ? Object.values(assignments).filter((tid) => tid === effectiveId).length
+      : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-12">
       <header className="border-b border-foreground px-4 py-4 sticky top-0 bg-background z-10">
-        <span className="font-display text-[9px] font-bold tracking-[0.25em] uppercase text-foreground/50 block">
-          Seating
-        </span>
+        <Link
+          href="/"
+          className="font-display text-sm font-bold tracking-tight text-foreground/50 hover:text-foreground transition-colors block mb-2"
+        >
+          ← 처음으로
+        </Link>
+
         <h1 className="font-display text-base font-bold tracking-tight">
           내 좌석 찾기
         </h1>
@@ -192,20 +204,25 @@ export default function ViewClient({ teams, assignments }: Props) {
         )}
 
         {/* Seat info card */}
-        {matchedTeam && located.length > 0 && (
+        {matchedTeam && located.length > 0 && effectiveId !== null && (
           <div className="border border-foreground">
             <div
               className="px-4 py-3 border-b border-foreground flex items-center gap-3"
-              style={{ background: teamColorMap.get(matchedTeam.id) }}
+              style={{ background: teamColorMap.get(effectiveId) }}
             >
               <span className="font-display text-lg font-bold">
                 {matchedTeam.church_name}
               </span>
-              {matchedTeam.team_name && (
+              {teamToJinId?.[matchedTeam.id] !== undefined &&
+              matchedTeam.jin_name ? (
+                <span className="font-display text-sm border border-foreground/60 bg-background px-2 py-0.5">
+                  {matchedTeam.jin_name}
+                </span>
+              ) : matchedTeam.team_name ? (
                 <span className="font-display text-sm text-foreground/70">
                   {matchedTeam.team_name}
                 </span>
-              )}
+              ) : null}
               <span className="ml-auto font-display font-bold text-sm border border-foreground/60 bg-background px-2 py-0.5">
                 {totalSeats}석
               </span>
@@ -259,128 +276,6 @@ export default function ViewClient({ teams, assignments }: Props) {
             />
           ))}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function MobileFloorView({
-  floor,
-  assignments,
-  highlightTeamId,
-  teamColorMap,
-}: {
-  floor: FloorDef;
-  assignments: Record<string, number>;
-  highlightTeamId: number | null;
-  teamColorMap: Map<number, string>;
-}) {
-  return (
-    <div>
-      <div className="bg-foreground text-background text-center font-display text-[9px] font-bold tracking-[0.4em] py-1.5 mb-1">
-        STAGE · 강대상
-      </div>
-      <div className="overflow-x-auto">
-        <div
-          className={cn(
-            "border-x border-b border-foreground p-2 inline-block min-w-full",
-            floor.id === "1F" && "rounded-b-[30%_15%]",
-          )}
-        >
-          <div className="flex gap-2 justify-start items-start">
-            {floor.sections.map((section, idx) => (
-              <div key={section.id} className="flex gap-2 items-start shrink-0">
-                <MobileSectionView
-                  section={section}
-                  floorId={floor.id}
-                  assignments={assignments}
-                  highlightTeamId={highlightTeamId}
-                  teamColorMap={teamColorMap}
-                />
-                {idx < floor.sections.length - 1 && (
-                  <div className="w-px self-stretch border-l border-dashed border-foreground/30 shrink-0" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const CELL = 18;
-
-function MobileSectionView({
-  section,
-  floorId,
-  assignments,
-  highlightTeamId,
-  teamColorMap,
-}: {
-  section: SectionDef;
-  floorId: "1F" | "2F";
-  assignments: Record<string, number>;
-  highlightTeamId: number | null;
-  teamColorMap: Map<number, string>;
-}) {
-  const block = section.id.split("-")[1];
-  const maxCols = Math.max(...section.rows.map((r) => r.count));
-
-  return (
-    <div className="flex flex-col items-center shrink-0">
-      <span className="font-display text-[10px] font-bold tracking-widest text-foreground/50 mb-1">
-        {section.label}
-      </span>
-      <div className="flex flex-col gap-[3px]">
-        {section.rows.map((row, rIdx) => {
-          const leftPad = Math.floor((maxCols - row.count) / 2);
-          return (
-            <div key={rIdx} className="flex gap-[3px] items-center">
-              <span className="font-display text-[9px] text-foreground/40 w-4 text-right tabular-nums shrink-0">
-                {rIdx + 1}
-              </span>
-              <div
-                className="grid gap-[3px]"
-                style={{ gridTemplateColumns: `repeat(${maxCols}, ${CELL}px)` }}
-              >
-                {Array.from({ length: maxCols }).map((_, cIdx) => {
-                  const inRow = cIdx >= leftPad && cIdx < leftPad + row.count;
-                  if (!inRow)
-                    return (
-                      <span key={cIdx} style={{ width: CELL, height: CELL }} />
-                    );
-                  const key = `${floorId}_${block}_R${rIdx + 1}_C${cIdx - leftPad + 1}`;
-                  const disabled = isSeatDisabled(key);
-                  const teamId = assignments[key];
-                  const isHighlight =
-                    highlightTeamId !== null && teamId === highlightTeamId;
-                  const dimmed = highlightTeamId !== null && !isHighlight;
-                  const bg = disabled
-                    ? "oklch(0.85 0 0)"
-                    : teamColorMap.get(teamId);
-                  return (
-                    <span
-                      key={cIdx}
-                      data-team-highlight={isHighlight ? teamId : undefined}
-                      className={cn(
-                        "border border-foreground/40 transition-opacity",
-                        dimmed && "opacity-15",
-                        isHighlight && "ring-2 ring-foreground ring-offset-0",
-                      )}
-                      style={{
-                        background: bg,
-                        width: CELL,
-                        height: CELL,
-                        display: "block",
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
