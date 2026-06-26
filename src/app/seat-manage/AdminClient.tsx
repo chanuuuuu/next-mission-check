@@ -229,7 +229,7 @@ export default function AdminClient({ initialTeams, savedAssignments }: Props) {
               {teams.length}팀 · {totalDemand}명
             </span>
             <Link
-              href="/seating/view"
+              href="/seat"
               className="flex items-center gap-1.5 border border-foreground px-3 py-1 hover:bg-foreground hover:text-background transition-colors"
             >
               <Eye className="h-3.5 w-3.5" />
