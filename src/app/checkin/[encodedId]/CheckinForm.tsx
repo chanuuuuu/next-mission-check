@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { Church } from '@/types'
-import { encodeChurchParam } from '@/lib/encode'
 
 interface Props {
   church: Church
@@ -48,12 +47,12 @@ export function CheckinForm({ church, phaseCode }: Props) {
   useEffect(() => {
     if (!submitted) return
     if (countdown === 0) {
-      router.push(`/generate/${encodeChurchParam(church.name, church.id)}`)
+      router.push('/')
       return
     }
     const timer = setTimeout(() => setCountdown((n) => n - 1), 1000)
     return () => clearTimeout(timer)
-  }, [submitted, countdown, church.name, church.id, router])
+  }, [submitted, countdown, router])
 
   if (submitted) {
     return (
@@ -70,7 +69,7 @@ export function CheckinForm({ church, phaseCode }: Props) {
             총 <span className="font-bold text-brand text-lg">{headcount || 0}</span>명 도착
           </p>
           <p className="mt-6 text-sm text-muted-foreground">
-            <span className="font-bold text-foreground tabular-nums">{countdown}</span>초 후 QR 페이지로 이동합니다.
+            <span className="font-bold text-foreground tabular-nums">{countdown}</span>초 후 처음 화면으로 이동합니다.
           </p>
         </div>
       </div>

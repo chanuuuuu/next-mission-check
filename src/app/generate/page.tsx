@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Church } from '@/types'
@@ -34,8 +35,14 @@ export default function GeneratePage() {
       <div className="w-full max-w-[480px] bg-background border-x border-foreground h-full flex flex-col animate-[var(--animate-slide-up)]">
 
         {/* 헤더 */}
-        <header className="px-6 pt-8 pb-6 border-b border-foreground flex-shrink-0">
-          <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-muted-foreground">
+        <header className="px-6 pt-6 pb-6 border-b border-foreground flex-shrink-0">
+          <Link
+            href="/"
+            className="font-display text-sm font-bold tracking-tight text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← 처음으로
+          </Link>
+          <p className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-muted-foreground mt-4">
             셀프 체크인 · STEP 1
           </p>
           <h1 className="text-xl font-bold tracking-tight mt-2 leading-none">
