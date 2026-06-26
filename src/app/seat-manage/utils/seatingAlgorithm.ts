@@ -59,10 +59,12 @@ function buildSectionRowInfos(
 
 // Within a single section's zone rows (ordered front-to-back), find the consecutive
 // block with minimum rows needed to cover headcount, then minimum waste, then max score.
+// strictFrontFirst=true: return immediately on the first fitting block (frontmost wins, waste is ignored).
 function findBestBlockInSection(
   headcount: number,
   zoneRows: RowInfo[],
   usedRowKeys: Set<string>,
+  strictFrontFirst = false,
 ): { rows: RowInfo[]; waste: number; avgScore: number } | null {
   let best: { rows: RowInfo[]; waste: number; avgScore: number } | null = null
 
@@ -85,6 +87,7 @@ function findBestBlockInSection(
       if (capacity >= headcount) {
         const waste = capacity - headcount
         const avgScore = scoreWeightedSum / capacity
+        if (strictFrontFirst) return { rows: [...blockRows], waste, avgScore }
         if (!best || waste < best.waste || (waste === best.waste && avgScore > best.avgScore)) {
           best = { rows: [...blockRows], waste, avgScore }
         }
@@ -99,22 +102,31 @@ function findBestBlockInSection(
 // Across multiple sections, find the best block.
 // frontFirst=true (2F): sort by (firstRow + waste×0.5) so front rows win over small waste gains.
 // frontFirst=false (1F): sort by waste ASC then avgScore DESC (original behaviour).
+// strictFrontFirst=true (jin mode 1F): return frontmost block without waste comparison.
 function findBestBlock(
   headcount: number,
   sectionsZoneRows: RowInfo[][],
   usedRowKeys: Set<string>,
   frontFirst = false,
+  strictFrontFirst = false,
 ): { rows: RowInfo[]; waste: number; avgScore: number } | null {
   const candidates: { rows: RowInfo[]; waste: number; avgScore: number }[] = []
 
   for (const zoneRows of sectionsZoneRows) {
-    const c = findBestBlockInSection(headcount, zoneRows, usedRowKeys)
+    const c = findBestBlockInSection(headcount, zoneRows, usedRowKeys, strictFrontFirst)
     if (c) candidates.push(c)
   }
 
   if (!candidates.length) return null
 
-  if (frontFirst) {
+  if (strictFrontFirst) {
+    candidates.sort((a, b) => {
+      const aIdx = a.rows[0].globalActiveIdx
+      const bIdx = b.rows[0].globalActiveIdx
+      if (aIdx !== bIdx) return aIdx - bIdx
+      return a.waste !== b.waste ? a.waste - b.waste : b.avgScore - a.avgScore
+    })
+  } else if (frontFirst) {
     candidates.sort((a, b) => {
       const aKey = a.rows[0].globalActiveIdx + a.waste * 0.5
       const bKey = b.rows[0].globalActiveIdx + b.waste * 0.5
@@ -174,6 +186,7 @@ function shuffle<T>(arr: T[]): T[] {
 export function generateSeating(
   teams: Team[],
   dynamicOverrides: Record<string, number> = {},
+  options: { jinMode?: boolean } = {},
 ): AlgoResult[] {
   if (!teams.length) return []
 
@@ -209,10 +222,10 @@ export function generateSeating(
   const usedRowKeys = new Set<string>()
   const results: AlgoResult[] = []
 
-  function allocate(teamList: Team[], zones: RowInfo[][], frontFirst = false): Team[] {
+  function allocate(teamList: Team[], zones: RowInfo[][], frontFirst = false, strictFrontFirst = false): Team[] {
     const unplaced: Team[] = []
     for (const team of teamList) {
-      const best = findBestBlock(team.headcount, zones, usedRowKeys, frontFirst)
+      const best = findBestBlock(team.headcount, zones, usedRowKeys, frontFirst, strictFrontFirst)
       if (!best) { unplaced.push(team); continue }
 
       for (const row of best.rows) usedRowKeys.add(row.rowKey)
@@ -229,14 +242,25 @@ export function generateSeating(
     return unplaced
   }
 
-  // 1. Adults: 1F back (waste-first) → 2F (front-first)
-  const adultOvf = allocate(adults, adultZone1F)
-  allocate(adultOvf, overflow2F, true)
+  if (options.jinMode) {
+    // Jin mode: each section used in full (no front/back split).
+    // strictFrontFirst=true ensures teams are placed from the frontmost available rows,
+    // ignoring waste minimization — rows are never skipped to reduce seat/headcount gap.
+    const fullZone1F = blocks1F.map(b => [...floor1.get(b)!.front, ...floor1.get(b)!.back])
+    const youthOvf = allocate(youth, fullZone1F, false, true)
+    const adultOvf = allocate(adults, fullZone1F, false, true)
+    allocate(youthOvf, overflow2F, true)
+    allocate(adultOvf, overflow2F, true)
+  } else {
+    // 1. Adults: 1F back (waste-first) → 2F (front-first)
+    const adultOvf = allocate(adults, adultZone1F)
+    allocate(adultOvf, overflow2F, true)
 
-  // 2. Youth: 1F front → 1F back 잔여 (waste-first) → 2F (front-first)
-  const youthOvf1 = allocate(youth, youthZone1F)
-  const youthOvf2 = allocate(youthOvf1, backZone1F)
-  allocate(youthOvf2, overflow2F, true)
+    // 2. Youth: 1F front → 1F back 잔여 (waste-first) → 2F (front-first)
+    const youthOvf1 = allocate(youth, youthZone1F)
+    const youthOvf2 = allocate(youthOvf1, backZone1F)
+    allocate(youthOvf2, overflow2F, true)
+  }
 
   return results
 }
