@@ -1,6 +1,9 @@
+import type { Metadata } from 'next'
 import { sql } from '@/lib/db'
 import type { Team } from '@/types/seating'
 import ViewClient from './ViewClient'
+
+export const metadata: Metadata = { title: '선교 대원 자리배치 시스템' }
 
 export default async function SeatingViewPage() {
   const teams = (await sql`
