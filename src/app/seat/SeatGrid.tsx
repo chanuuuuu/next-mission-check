@@ -4,6 +4,35 @@ import type { FloorDef, SectionDef } from '../seat-manage/config/seatLayout'
 
 export const CELL = 18
 
+function SeatCell({
+  seatKey,
+  disabled,
+  teamId,
+  highlightTeamId,
+  teamColorMap,
+}: {
+  seatKey: string
+  disabled: boolean
+  teamId: number | undefined
+  highlightTeamId: number | null
+  teamColorMap: Map<number, string>
+}) {
+  const isHighlight = highlightTeamId !== null && teamId === highlightTeamId
+  const dimmed = highlightTeamId !== null && !isHighlight
+  const bg = disabled ? 'oklch(0.85 0 0)' : teamColorMap.get(teamId!)
+  return (
+    <span
+      data-team-highlight={isHighlight ? teamId : undefined}
+      className={cn(
+        'border border-foreground/40 transition-opacity',
+        dimmed && 'opacity-15',
+        isHighlight && 'ring-2 ring-foreground ring-offset-0',
+      )}
+      style={{ background: bg, width: CELL, height: CELL, display: 'block' }}
+    />
+  )
+}
+
 export function MobileFloorView({
   floor,
   assignments,
@@ -84,23 +113,17 @@ export function MobileSectionView({
               >
                 {Array.from({ length: maxCols }).map((_, cIdx) => {
                   const inRow = cIdx >= leftPad && cIdx < leftPad + row.count
-                  if (!inRow) return <span key={cIdx} style={{ width: CELL, height: CELL }} />
-                  const key = `${floorId}_${block}_R${rIdx + 1}_C${cIdx - leftPad + 1}`
-                  const disabled = isSeatDisabled(key)
-                  const teamId = assignments[key]
-                  const isHighlight = highlightTeamId !== null && teamId === highlightTeamId
-                  const dimmed = highlightTeamId !== null && !isHighlight
-                  const bg = disabled ? 'oklch(0.85 0 0)' : teamColorMap.get(teamId)
+                  if (!inRow)
+                    return <span key={cIdx} style={{ width: CELL, height: CELL }} />
+                  const seatKey = `${floorId}_${block}_R${rIdx + 1}_C${cIdx - leftPad + 1}`
                   return (
-                    <span
+                    <SeatCell
                       key={cIdx}
-                      data-team-highlight={isHighlight ? teamId : undefined}
-                      className={cn(
-                        'border border-foreground/40 transition-opacity',
-                        dimmed && 'opacity-15',
-                        isHighlight && 'ring-2 ring-foreground ring-offset-0',
-                      )}
-                      style={{ background: bg, width: CELL, height: CELL, display: 'block' }}
+                      seatKey={seatKey}
+                      disabled={isSeatDisabled(seatKey)}
+                      teamId={assignments[seatKey]}
+                      highlightTeamId={highlightTeamId}
+                      teamColorMap={teamColorMap}
                     />
                   )
                 })}

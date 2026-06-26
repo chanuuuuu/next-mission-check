@@ -52,3 +52,12 @@ export interface AlgoResult {
   floor: number
   earnedScore: number
 }
+
+export type FloorTab = '1F' | '2F'
+
+export interface SeatGroup {
+  floor: FloorTab
+  sectionId: string
+  sectionLabel: string
+  rowIndices: number[]
+}
