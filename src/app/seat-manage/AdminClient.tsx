@@ -18,7 +18,7 @@ interface Props {
   savedMode: 'team' | 'jin';
 }
 
-type Notice = { type: "ok" | "err"; msg: string };
+type Notice = { type: "ok" | "err"; msg: string; retry?: boolean };
 
 export default function AdminClient({ initialTeams, savedAssignments, savedJinAssignments, savedMode }: Props) {
   const [teams, setTeams] = useState<Team[]>(initialTeams);
@@ -272,6 +272,8 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
         } else {
           setNotice({ type: "err", msg: "저장 실패" });
         }
+      } catch {
+        setNotice({ type: "err", msg: "네트워크 오류 — 저장되지 않았습니다", retry: true });
       } finally {
         setIsSaving(false);
       }
@@ -306,6 +308,8 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
       } else {
         setNotice({ type: "err", msg: "저장 실패" });
       }
+    } catch {
+      setNotice({ type: "err", msg: "네트워크 오류 — 저장되지 않았습니다", retry: true });
     } finally {
       setIsSaving(false);
     }
@@ -326,13 +330,21 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
       {notice && (
         <div
           className={cn(
-            "fixed top-4 right-4 z-50 px-4 py-3 font-display text-sm font-bold tracking-wide border",
+            "fixed top-4 right-4 z-50 px-4 py-3 font-display text-sm font-bold tracking-wide border flex items-center gap-3",
             notice.type === "ok"
               ? "bg-foreground text-background border-foreground"
               : "bg-background text-foreground border-foreground",
           )}
         >
-          {notice.msg}
+          <span>{notice.msg}</span>
+          {notice.retry && (
+            <button
+              onClick={() => { setNotice(null); saveResults(); }}
+              className="underline underline-offset-2 shrink-0 hover:no-underline"
+            >
+              재시도
+            </button>
+          )}
         </div>
       )}
 
