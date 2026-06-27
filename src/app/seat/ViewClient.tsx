@@ -52,8 +52,8 @@ export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
         />
 
         {!query && (
-          <div className="border border-foreground p-3 text-center space-y-1.5">
-            <MapPin className="h-5 w-5 mx-auto text-foreground/40" />
+          <div className="border border-foreground h-[84px] flex flex-col items-center justify-center gap-1.5 bg-foreground/5">
+            <MapPin className="h-5 w-5 text-foreground/40" />
             <p className="text-sm text-foreground/60">
               교회명을 입력하면 해당 좌석 위치가 표시됩니다.
             </p>
@@ -61,13 +61,13 @@ export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
         )}
 
         {query && !matchedTeam && (
-          <div className="border border-foreground p-3 text-center text-sm text-foreground/60">
+          <div className="border border-foreground h-[84px] flex items-center justify-center text-sm text-foreground/60 bg-foreground/5">
             검색 결과가 없습니다.
           </div>
         )}
 
         {matchedTeam && located.length === 0 && (
-          <div className="border border-foreground p-3 text-center text-sm text-foreground/60">
+          <div className="border border-foreground h-[84px] flex items-center justify-center text-sm text-foreground/60 bg-foreground/5">
             배정된 좌석이 없습니다.
           </div>
         )}

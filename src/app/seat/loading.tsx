@@ -36,10 +36,10 @@ export default function SeatingLoading() {
         </div>
 
         {/* 빈 상태 카드 — 검색 전 기본 상태 */}
-        <div className="border border-foreground p-3 text-center space-y-1.5">
-          <MapPin className="h-5 w-5 mx-auto text-foreground/40" />
+        <div className="border border-foreground h-[84px] flex flex-col items-center justify-center gap-1.5 bg-foreground/5">
+          <MapPin className="h-5 w-5 text-foreground/40" />
           <span
-            className="h-3.5 w-48 block mx-auto rounded-none bg-[size:200%_100%] animate-[var(--animate-shimmer)]"
+            className="h-3.5 w-48 block rounded-none bg-[size:200%_100%] animate-[var(--animate-shimmer)]"
             style={{ background: 'linear-gradient(90deg, oklch(0.92 0 0) 0%, oklch(0.86 0 0) 50%, oklch(0.92 0 0) 100%)', backgroundSize: '200% 100%' }}
           />
         </div>
