@@ -4,27 +4,29 @@ import type { Team } from '@/types/seating'
 import { buildJinUnits } from '../seat-manage/utils/jinGrouping'
 import ViewClient from './ViewClient'
 
+export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: '선교 대원 자리배치 시스템' }
 
 export default async function SeatingViewPage() {
-  const teams = (await sql`
-    SELECT
-      t.id,
-      t.church_id,
-      c.name         AS church_name,
-      c.team_name,
-      c.team_type,
-      c.jin_name,
-      t.headcount,
-      t.accumulated_score
-    FROM teams t
-    JOIN churches c ON t.church_id = c.id
-    ORDER BY t.accumulated_score ASC
-  `) as Team[]
-
-  const [latestPhase] = (await sql`
-    SELECT id, assignment_mode FROM phases ORDER BY phase_number DESC LIMIT 1
-  `) as { id: number; assignment_mode: 'team' | 'jin' }[]
+  const [teams, [latestPhase]] = await Promise.all([
+    sql`
+      SELECT
+        t.id,
+        t.church_id,
+        c.name         AS church_name,
+        c.team_name,
+        c.team_type,
+        c.jin_name,
+        t.headcount,
+        t.accumulated_score
+      FROM teams t
+      JOIN churches c ON t.church_id = c.id
+      ORDER BY t.accumulated_score ASC
+    `.then(r => r as Team[]),
+    sql`
+      SELECT id, assignment_mode FROM phases ORDER BY phase_number DESC LIMIT 1
+    `.then(r => r as { id: number; assignment_mode: 'team' | 'jin' }[]),
+  ])
 
   let assignments: Record<string, number> = {}
   let teamToJinId: Record<number, number> = {}
