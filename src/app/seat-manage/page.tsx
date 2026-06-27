@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import { sql } from '@/lib/db'
 import type { Team } from '@/types/seating'
 import AdminClient from './AdminClient'
+import PinGate from './PinGate'
 
+export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: '선교 대원 자리배치 시스템' }
 
 export default async function SeatingPage() {
@@ -61,11 +63,13 @@ export default async function SeatingPage() {
   }
 
   return (
-    <AdminClient
-      initialTeams={teams}
-      savedAssignments={savedAssignments}
-      savedJinAssignments={savedJinAssignments}
-      savedMode={savedMode}
-    />
+    <PinGate>
+      <AdminClient
+        initialTeams={teams}
+        savedAssignments={savedAssignments}
+        savedJinAssignments={savedJinAssignments}
+        savedMode={savedMode}
+      />
+    </PinGate>
   )
 }
