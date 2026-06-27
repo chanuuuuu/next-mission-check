@@ -20,13 +20,13 @@ export function FloorTabView({
 }: Props) {
   return (
     <div>
-      <div className="grid grid-cols-2 border border-foreground mb-4">
+      <div className="grid grid-cols-2 border border-foreground mb-2">
         {(['1F', '2F'] as FloorTab[]).map((f) => (
           <button
             key={f}
             onClick={() => onTabChange(f)}
             className={cn(
-              'font-display font-bold text-sm py-2 tracking-wider transition-colors',
+              'font-display font-bold text-sm py-1.5 tracking-wider transition-colors',
               floorTab === f
                 ? 'bg-foreground text-background'
                 : 'bg-background text-foreground hover:bg-foreground/10',

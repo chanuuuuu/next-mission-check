@@ -20,10 +20,10 @@ export function SeatInfoCard({
   return (
     <div className="border border-foreground">
       <div
-        className="px-4 py-3 border-b border-foreground flex items-center gap-3"
+        className="px-3 py-2 border-b border-foreground flex items-center gap-3"
         style={{ background: teamColorMap.get(effectiveId) }}
       >
-        <span className="font-display text-lg font-bold">
+        <span className="font-display text-base font-bold">
           {matchedTeam.church_name}
         </span>
         {teamToJinId?.[matchedTeam.id] !== undefined && matchedTeam.jin_name ? (
@@ -41,7 +41,7 @@ export function SeatInfoCard({
       </div>
       <ul className="divide-y divide-foreground">
         {located.map((g) => (
-          <li key={g.sectionId} className="px-4 py-3 flex items-center gap-3">
+          <li key={g.sectionId} className="px-3 py-2 flex items-center gap-3">
             <span className="bg-foreground text-background font-display font-bold text-[10px] px-2 py-1 tracking-[0.2em] shrink-0">
               {g.floor}
             </span>

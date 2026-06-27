@@ -32,10 +32,10 @@ export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-12">
-      <header className="border-b border-foreground px-4 py-4 sticky top-0 bg-background z-10">
+      <header className="border-b border-foreground px-4 py-2 sticky top-0 bg-background z-10">
         <Link
           href="/"
-          className="font-display text-sm font-bold tracking-tight text-foreground/50 hover:text-foreground transition-colors block mb-2"
+          className="font-display text-sm font-bold tracking-tight text-foreground/50 hover:text-foreground transition-colors block mb-0.5"
         >
           ← 처음으로
         </Link>
@@ -44,7 +44,7 @@ export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
         </h1>
       </header>
 
-      <div className="px-4 py-5 space-y-5">
+      <div className="px-4 py-3 space-y-3">
         <SearchInput
           query={query}
           onChange={setQuery}
@@ -52,8 +52,8 @@ export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
         />
 
         {!query && (
-          <div className="border border-foreground p-5 text-center space-y-2">
-            <MapPin className="h-6 w-6 mx-auto text-foreground/40" />
+          <div className="border border-foreground p-3 text-center space-y-1.5">
+            <MapPin className="h-5 w-5 mx-auto text-foreground/40" />
             <p className="text-sm text-foreground/60">
               교회명을 입력하면 해당 좌석 위치가 표시됩니다.
             </p>
@@ -61,13 +61,13 @@ export default function ViewClient({ teams, assignments, teamToJinId }: Props) {
         )}
 
         {query && !matchedTeam && (
-          <div className="border border-foreground p-5 text-center text-sm text-foreground/60">
+          <div className="border border-foreground p-3 text-center text-sm text-foreground/60">
             검색 결과가 없습니다.
           </div>
         )}
 
         {matchedTeam && located.length === 0 && (
-          <div className="border border-foreground p-5 text-center text-sm text-foreground/60">
+          <div className="border border-foreground p-3 text-center text-sm text-foreground/60">
             배정된 좌석이 없습니다.
           </div>
         )}
