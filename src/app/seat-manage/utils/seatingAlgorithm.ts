@@ -2,6 +2,18 @@ import { FLOORS } from '../config/seatLayout'
 import { isSeatDisabled, getBaseScore, SCORE_OVERRIDES } from '../config/seatScores'
 import type { Team, AlgoResult } from '@/types/seating'
 
+// Hard-coded placement constraints — override accumulated_score ranking entirely.
+// Jin mode: the whole jin unit '2청1진' goes to the front of A block.
+// Team mode: individual church '수정교회' goes to the front of A block.
+// Both modes: '서울사랑나눔부' goes to the very back of D block.
+const FORCED_FRONT_A_JIN  = '2청1진'
+const FORCED_FRONT_A_TEAM = '수정교회'
+const FORCED_BACK_D       = '서울역사랑나눔부'
+
+function matchConstraint(team: Team, name: string): boolean {
+  return team.church_name === name || team.jin_name === name
+}
+
 // Row-level metadata. One RowInfo = one physical row in a section.
 interface RowInfo {
   floorId: '1F' | '2F'
@@ -203,9 +215,6 @@ export function generateSeating(
     .map(t => ({ ...t, _sort: t.accumulated_score + (Math.random() * 2 - 1) * noiseAmp }))
     .sort((a, b) => a._sort - b._sort)
 
-  const adults = sorted.filter(t => t.team_type === 'ADULT')
-  const youth = sorted.filter(t => t.team_type !== 'ADULT')
-
   const floor1 = buildSectionRowInfos('1F')
   const floor2 = buildSectionRowInfos('2F')
 
@@ -221,6 +230,49 @@ export function generateSeating(
 
   const usedRowKeys = new Set<string>()
   const results: AlgoResult[] = []
+
+  function forcedPlace(team: Team, orderedRows: RowInfo[]): boolean {
+    const best = findBestBlockInSection(team.headcount, orderedRows, usedRowKeys, true)
+    if (!best) return false
+    for (const row of best.rows) usedRowKeys.add(row.rowKey)
+    const seatKeys = blockToSeatKeys(best.rows)
+    results.push({
+      teamId: team.id,
+      seatKeys,
+      block: best.rows[0].block,
+      floor: 1,
+      earnedScore: calcEarnedScore(best.rows, seatKeys, overrides),
+    })
+    return true
+  }
+
+  // Apply hard placement constraints before anything else.
+  const frontAName = options.jinMode ? FORCED_FRONT_A_JIN : FORCED_FRONT_A_TEAM
+  const isConstrained = (t: Team) =>
+    matchConstraint(t, frontAName) || matchConstraint(t, FORCED_BACK_D)
+
+  const constrained = sorted.filter(t => isConstrained(t))
+  const remaining   = sorted.filter(t => !isConstrained(t))
+
+  const frontAUnplaced: Team[] = []
+  const frontATeam = constrained.find(t => matchConstraint(t, frontAName))
+  if (frontATeam) {
+    const aRows = [...floor1.get('A')!.front, ...floor1.get('A')!.back]
+    if (!forcedPlace(frontATeam, aRows)) frontAUnplaced.push(frontATeam)
+  }
+
+  const backDUnplaced: Team[] = []
+  const backDTeam = constrained.find(t => matchConstraint(t, FORCED_BACK_D))
+  if (backDTeam) {
+    const dRows = [...floor1.get('D')!.front, ...floor1.get('D')!.back].reverse()
+    if (!forcedPlace(backDTeam, dRows)) backDUnplaced.push(backDTeam)
+  }
+
+  const fallback = [...frontAUnplaced, ...backDUnplaced]
+
+  const pool = [...remaining, ...fallback]
+  const adults = pool.filter(t => t.team_type === 'ADULT')
+  const youth = pool.filter(t => t.team_type !== 'ADULT')
 
   function allocate(teamList: Team[], zones: RowInfo[][], frontFirst = false, strictFrontFirst = false): Team[] {
     const unplaced: Team[] = []
