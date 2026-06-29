@@ -46,15 +46,18 @@ export function decodeCheckinParam(encoded: string): number | null {
   }
 }
 
+const QR_HASH = 'sc'
+
 export function encodeQRPayload(churchId: number): string {
-  return toBase64url(JSON.stringify({ churchId }))
+  return toBase64url(JSON.stringify({ h: QR_HASH, id: churchId }))
 }
 
 export function decodeQRPayload(encoded: string): { churchId: number } | null {
   try {
     const parsed = JSON.parse(fromBase64url(encoded))
-    if (typeof parsed?.churchId !== 'number') return null
-    return parsed
+    if (parsed?.h !== QR_HASH) return null
+    if (typeof parsed?.id !== 'number') return null
+    return { churchId: parsed.id }
   } catch {
     return null
   }
