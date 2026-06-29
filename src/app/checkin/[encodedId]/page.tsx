@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { CheckinForm } from './CheckinForm'
 import { Church, Checkin } from '@/types'
-import { encodeChurchParam, decodeCheckinParam } from '@/lib/encode'
+import { decodeCheckinParam } from '@/lib/encode'
 
 interface Props {
   params: Promise<{ encodedId: string }>
@@ -55,7 +55,7 @@ export default async function CheckinPage({ params }: Props) {
   }
 
   if (isDuplicate) {
-    redirect(`/generate/${encodeChurchParam(church.name, church.id)}`)
+    redirect(`/scanner?duplicate=1&name=${encodeURIComponent(church.name)}`)
   }
 
   return <CheckinForm church={church} phaseCode={phase} />
