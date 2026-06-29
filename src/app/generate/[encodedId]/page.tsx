@@ -1,65 +1,39 @@
-import { redirect } from "next/navigation";
-import type { Metadata } from "next";
-import { sql } from "@/lib/db";
-import { decodeChurchParam } from "@/lib/encode";
-import { Church, Checkin } from "@/types";
-import QRPageClient from "./QRPageClient";
+import { QRPageClient } from './QRPageClient'
+import { Church } from '@/types'
+import { decodeChurchParam } from '@/lib/encode'
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ encodedId: string }>;
-}): Promise<Metadata> {
-  const { encodedId } = await params;
-  const churchId = decodeChurchParam(encodedId);
-  if (!churchId) return {};
-
-  const [church] =
-    (await sql`SELECT name FROM churches WHERE id = ${churchId}`) as Church[];
-  if (!church) return {};
-
-  return {
-    title: `${church.name} QR 체크인`,
-    openGraph: {
-      title: `${church.name} QR 체크인`,
-      description:
-        "영동선교 복귀 체크인 QR 코드입니다. 복귀 후, QR로 체크인 하세요.",
-      images: [{ url: "/logo.png", width: 277, height: 339 }],
-    },
-  };
+interface Props {
+  params: Promise<{ encodedId: string }>
 }
 
-export default async function QRPage({
-  params,
-}: {
-  params: Promise<{ encodedId: string }>;
-}) {
-  const { encodedId } = await params;
+export default async function GenerateEncodedPage({ params }: Props) {
+  const { encodedId } = await params
+  const churchId = decodeChurchParam(encodedId)
 
-  const churchId = decodeChurchParam(encodedId);
-  if (!churchId) redirect("/generate");
-
-  const [[church], [settings]] = (await Promise.all([
-    sql`SELECT * FROM churches WHERE id = ${churchId}`,
-    sql`SELECT value FROM app_settings WHERE key = 'active_phase'`,
-  ])) as [Church[], { value: string }[]];
-  if (!church) redirect("/generate");
-
-  const phase = (settings?.value ?? "") as string;
-
-  let isCheckedIn = false;
-  if (phase) {
-    const [checkin] = (await sql`
-      SELECT id FROM checkins WHERE church_id = ${churchId} AND phase_code = ${phase}
-    `) as Checkin[];
-    isCheckedIn = !!checkin;
+  if (!churchId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center px-6">
+          <h1 className="text-2xl font-bold">잘못된 접근입니다.</h1>
+        </div>
+      </div>
+    )
   }
 
-  return (
-    <QRPageClient
-      church={church}
-      phase={phase}
-      initialIsCheckedIn={isCheckedIn}
-    />
-  );
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+  const res = await fetch(`${baseUrl}/api/churches`, { cache: 'no-store' })
+  const churches: Church[] = await res.json()
+  const church = churches.find((c) => c.id === churchId)
+
+  if (!church) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center px-6">
+          <h1 className="text-2xl font-bold">등록되지 않은 교회입니다.</h1>
+        </div>
+      </div>
+    )
+  }
+
+  return <QRPageClient church={church} />
 }
