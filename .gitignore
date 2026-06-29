@@ -50,3 +50,5 @@ next-env.d.ts
 src/googleHooks/*
 
 resources/*
+
+qr-output/*
