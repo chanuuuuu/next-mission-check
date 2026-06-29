@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { sql } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
 import type { Team } from "@/types/seating";
 import { buildJinUnits } from "../seat-manage/utils/jinGrouping";
 import PCClient from "./PCClient";
