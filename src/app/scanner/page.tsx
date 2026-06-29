@@ -1,15 +1,38 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { decodeQRPayload } from '@/lib/encode'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { decodeQRPayload, encodeCheckinParam } from '@/lib/encode'
+import { CHURCH_NAMES } from '@/lib/churches'
 
 type ScanStatus = 'idle' | 'scanning' | 'error'
 
 export default function ScannerPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null)
   const [status, setStatus] = useState<ScanStatus>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [duplicateToast, setDuplicateToast] = useState<string | null>(null)
+  const duplicateTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const isDuplicate = searchParams.get('duplicate')
+    const name = searchParams.get('name')
+    if (isDuplicate && name) {
+      setDuplicateToast(name)
+      if (duplicateTimer.current) clearTimeout(duplicateTimer.current)
+      duplicateTimer.current = setTimeout(() => setDuplicateToast(null), 4000)
+      router.replace('/scanner')
+    }
+  }, [searchParams, router])
+
+  useEffect(() => {
+    return () => {
+      if (duplicateTimer.current) clearTimeout(duplicateTimer.current)
+    }
+  }, [])
 
   const handleScanSuccess = async (decodedText: string) => {
     if (isProcessing) return
@@ -17,33 +40,19 @@ export default function ScannerPage() {
     setStatus('scanning')
 
     await scannerRef.current?.stop().catch(() => {})
+    scannerRef.current = null
 
     const decoded = decodeQRPayload(decodedText)
-    const churchId = decoded?.churchId
+    const churchName = decoded ? CHURCH_NAMES[decoded.churchId] : undefined
 
-    if (!churchId || isNaN(churchId)) {
+    if (!decoded || !churchName) {
       setStatus('error')
       setErrorMsg('유효하지 않은 QR 코드입니다.')
       await restartCamera()
       return
     }
 
-    const res = await fetch('/api/sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payload: decodedText }),
-    })
-
-    if (!res.ok) {
-      const data = await res.json()
-      setStatus('error')
-      setErrorMsg(data.error ?? '처리 중 오류가 발생했습니다.')
-      await restartCamera()
-      return
-    }
-
-    setStatus('idle')
-    setTimeout(() => restartCamera(), 2000)
+    router.push(`/checkin/${encodeCheckinParam(churchName, decoded.churchId)}`)
   }
 
   const restartCamera = async () => {
@@ -160,6 +169,13 @@ export default function ScannerPage() {
               ⚠ {errorMsg}
             </div>
           )}
+
+          {/* 중복 체크인 알럿 */}
+          {duplicateToast && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-5 py-3 text-sm font-bold font-display whitespace-nowrap">
+              이미 체크인된 교회입니다 — {duplicateToast}
+            </div>
+          )}
         </main>
 
         {/* 푸터 */}
@@ -171,7 +187,7 @@ export default function ScannerPage() {
                 QR 코드를 화면에 비춰주세요
               </p>
               <p className="text-xs text-white/50 mt-1.5">
-                스캔 완료 시 대원의 휴대폰이 자동으로 전환됩니다
+                스캔 완료 시 이 화면에서 체크인 페이지로 이동합니다
               </p>
             </div>
           </div>
