@@ -55,7 +55,7 @@ export default async function CheckinPage({ params }: Props) {
   }
 
   if (isDuplicate) {
-    redirect(`/scanner?duplicate=1&name=${encodeURIComponent(church.name)}`)
+    redirect('/scanner')
   }
 
   return <CheckinForm church={church} phaseCode={phase} />
