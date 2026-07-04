@@ -2,7 +2,11 @@
 
 import { useMemo, useState, useEffect, useLayoutEffect, useRef } from "react";
 import Link from "next/link";
-import { FLOORS, type FloorDef, type SectionDef } from "../seat-manage/config/seatLayout";
+import {
+  FLOORS,
+  type FloorDef,
+  type SectionDef,
+} from "../seat-manage/config/seatLayout";
 import { isSeatDisabled } from "../seat-manage/config/seatScores";
 import { computeTeamColors } from "../seat-manage/config/teamColors";
 import { cn } from "@/lib/utils";
@@ -20,7 +24,10 @@ interface Props {
 
 export default function PCClient({ teams, assignments }: Props) {
   const teamMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
-  const teamColorMap = useMemo(() => computeTeamColors(assignments), [assignments]);
+  const teamColorMap = useMemo(
+    () => computeTeamColors(assignments),
+    [assignments],
+  );
 
   const [activeIdx, setActiveIdx] = useState(0);
   const scaleRef = useRef<HTMLDivElement>(null);
@@ -28,7 +35,10 @@ export default function PCClient({ teams, assignments }: Props) {
 
   // Auto-switch every SWITCH_MS
   useEffect(() => {
-    const t = setInterval(() => setActiveIdx((p) => (p + 1) % FLOORS.length), SWITCH_MS);
+    const t = setInterval(
+      () => setActiveIdx((p) => (p + 1) % FLOORS.length),
+      SWITCH_MS,
+    );
     return () => clearInterval(t);
   }, []);
 
@@ -66,7 +76,9 @@ export default function PCClient({ teams, assignments }: Props) {
           >
             ← 관리자
           </Link>
-          <h1 className="font-display text-lg font-bold tracking-tight">좌석 배치 현황</h1>
+          <h1 className="font-display text-lg font-bold tracking-tight">
+            좌석 배치 현황
+          </h1>
           <div className="flex gap-2 ml-2">
             {FLOORS.map((f, i) => (
               <button
@@ -93,7 +105,9 @@ export default function PCClient({ teams, assignments }: Props) {
           <div
             key={activeIdx}
             className="absolute inset-y-0 left-0 bg-foreground/60"
-            style={{ animation: `progress-shrink ${SWITCH_MS}ms linear forwards` }}
+            style={{
+              animation: `progress-shrink ${SWITCH_MS}ms linear forwards`,
+            }}
           />
         </div>
       </header>
@@ -134,7 +148,9 @@ function ViewFloorView({
         <span className="bg-foreground text-background font-display font-bold text-xs px-2 py-1 tracking-[0.2em]">
           {floor.id}
         </span>
-        <h2 className="font-display text-xl font-bold tracking-tight">{floor.label}</h2>
+        <h2 className="font-display text-xl font-bold tracking-tight">
+          {floor.label}
+        </h2>
       </div>
 
       <div className="mx-auto max-w-[60%] border border-foreground bg-foreground text-background text-center font-display text-[10px] font-bold tracking-[0.4em] py-2 mb-1">
@@ -204,7 +220,11 @@ function ViewSectionView({
       }
     }
     if (curTeamId !== undefined)
-      groups.push({ teamId: curTeamId, start: groupStart, end: section.rows.length - 1 });
+      groups.push({
+        teamId: curTeamId,
+        start: groupStart,
+        end: section.rows.length - 1,
+      });
     return groups.filter((g) => !!g.teamId);
   }, [section, assignments, floorId, block]);
 
@@ -220,10 +240,15 @@ function ViewSectionView({
           const team = teamMap.get(g.teamId);
           if (!team) return null;
           const n = g.end - g.start + 1;
+          const rowLabel =
+            g.start === g.end
+              ? `${g.start + 1}열`
+              : `${g.start + 1}-${g.end + 1}열`;
+          const placement = `${section.label}분단 ${rowLabel}`;
           return (
             <div
               key={`${g.teamId}_${g.start}`}
-              className="absolute z-20 flex items-center justify-center pointer-events-none"
+              className="absolute z-20 flex flex-col items-center justify-center pointer-events-none"
               style={{
                 left: 19,
                 right: 0,
@@ -232,13 +257,22 @@ function ViewSectionView({
               }}
             >
               <span
-                className="font-display font-bold text-2xl text-foreground truncate px-1"
+                className="font-display font-bold text-xl text-foreground truncate px-1"
                 style={{
                   textShadow:
                     "0 0 6px rgba(255,255,255,1), 0 0 12px rgba(255,255,255,0.9), 0 0 20px rgba(255,255,255,0.7)",
                 }}
               >
                 {team.church_name}
+              </span>
+              <span
+                className="font-display font-bold text-sm text-foreground/70 truncate px-1"
+                style={{
+                  textShadow:
+                    "0 0 6px rgba(255,255,255,1), 0 0 12px rgba(255,255,255,0.9), 0 0 20px rgba(255,255,255,0.7)",
+                }}
+              >
+                {placement}
               </span>
             </div>
           );
@@ -255,21 +289,35 @@ function ViewSectionView({
                 </span>
                 <div
                   className="grid gap-[3px]"
-                  style={{ gridTemplateColumns: `repeat(${maxCols}, ${CELL}px)` }}
+                  style={{
+                    gridTemplateColumns: `repeat(${maxCols}, ${CELL}px)`,
+                  }}
                 >
                   {Array.from({ length: maxCols }).map((_, cIdx) => {
                     const inRow = cIdx >= leftPad && cIdx < leftPad + row.count;
                     if (!inRow)
-                      return <span key={cIdx} style={{ width: CELL, height: CELL }} />;
+                      return (
+                        <span
+                          key={cIdx}
+                          style={{ width: CELL, height: CELL }}
+                        />
+                      );
                     const seatKey = `${floorId}_${block}_R${rIdx + 1}_C${cIdx - leftPad + 1}`;
                     const disabled = isSeatDisabled(seatKey);
                     const teamId = assignments[seatKey];
-                    const bg = disabled ? "oklch(0.85 0 0)" : teamColorMap.get(teamId);
+                    const bg = disabled
+                      ? "oklch(0.85 0 0)"
+                      : teamColorMap.get(teamId);
                     return (
                       <span
                         key={cIdx}
                         className="border border-foreground/40"
-                        style={{ display: "block", width: CELL, height: CELL, background: bg }}
+                        style={{
+                          display: "block",
+                          width: CELL,
+                          height: CELL,
+                          background: bg,
+                        }}
                       />
                     );
                   })}
