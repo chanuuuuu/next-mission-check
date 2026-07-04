@@ -1,3 +1,6 @@
+export type DayKey = 'thu' | 'fri' | 'sat' | 'sun'
+export type JinPlacementStatus = 'placed' | 'ready' | 'unplaced'
+
 export interface Team {
   id: number
   church_id: number
@@ -7,6 +10,10 @@ export interface Team {
   jin_name: string | null
   headcount: number
   accumulated_score: number
+  headcount_thu: number | null
+  headcount_fri: number | null
+  headcount_sat: number | null
+  headcount_sun: number | null
 }
 
 export interface Phase {

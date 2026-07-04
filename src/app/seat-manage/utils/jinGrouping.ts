@@ -53,6 +53,10 @@ export function jinUnitsToFakeTeams(units: JinUnit[]): Team[] {
     jin_name: u.jinName,
     headcount: u.headcount,
     accumulated_score: u.accumulated_score,
+    headcount_thu: null,
+    headcount_fri: null,
+    headcount_sat: null,
+    headcount_sun: null,
   }))
 }
 

@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Eye, Play, RotateCcw, Save, Settings2, X } from "lucide-react";
+import { CheckCircle2, Circle, Eye, Play, RotateCcw, Save, Settings2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateSeating } from "./utils/seatingAlgorithm";
 import { buildJinUnits, jinUnitsToFakeTeams, algoResultsToJinResults } from "./utils/jinGrouping";
+import { tryPlaceAtRow } from "./utils/manualPlacement";
 import { FLOORS, type FloorDef, type SectionDef } from "./config/seatLayout";
 import { getBaseScore, isSeatDisabled } from "./config/seatScores";
 import { computeTeamColors } from "./config/teamColors";
-import type { Team, AlgoResult, JinUnit, JinAlgoResult } from "@/types/seating";
+import type { Team, AlgoResult, JinUnit, JinAlgoResult, DayKey, JinPlacementStatus } from "@/types/seating";
 
 interface Props {
   initialTeams: Team[];
@@ -19,6 +20,21 @@ interface Props {
 }
 
 type Notice = { type: "ok" | "err"; msg: string; retry?: boolean };
+
+// Derive row keys (format: "1F_A_r2") from seat assignment keys for preOccupied set.
+function getOccupiedRowKeys(assignments: Record<string, number>): Set<string> {
+  const keys = new Set<string>();
+  for (const seatKey of Object.keys(assignments)) {
+    const parts = seatKey.split("_"); // ['1F','A','R3','C5']
+    const rowIdx = parseInt(parts[2].slice(1)) - 1; // 'R3' → 2
+    keys.add(`${parts[0]}_${parts[1]}_r${rowIdx}`);
+  }
+  return keys;
+}
+
+const DAY_LABELS: Record<'base' | DayKey, string> = {
+  base: '기준', thu: '목', fri: '금', sat: '토', sun: '일',
+};
 
 export default function AdminClient({ initialTeams, savedAssignments, savedJinAssignments, savedMode }: Props) {
   const [teams, setTeams] = useState<Team[]>(initialTeams);
@@ -35,6 +51,15 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
   const [showOverrides, setShowOverrides] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [newDelta, setNewDelta] = useState("");
+
+  // Day-specific headcount
+  const [selectedDay, setSelectedDay] = useState<'base' | DayKey>('base');
+
+  // Jin placement state
+  const [jinStatuses, setJinStatuses] = useState<Map<string, JinPlacementStatus>>(new Map());
+  const [readyJin, setReadyJin] = useState<string | null>(null);
+  const [hoverPreview, setHoverPreview] = useState<{ seatKeys: Set<string>; feasible: boolean } | null>(null);
+  const [hoveredJinName, setHoveredJinName] = useState<string | null>(null);
 
   // Tracks the most recently saved assignment so clearAssignments always restores
   // the latest saved state, even if a new save happened during this session.
@@ -56,11 +81,41 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
       const units = buildJinUnits(initialTeams);
       const idMap = new Map(units.map((u) => [u.jinName, u.syntheticId]));
       const next: Record<string, number> = {};
+      const placedJinNames = new Set<string>();
+      const jinSeatKeysMap = new Map<string, string[]>();
+
       for (const [key, jinName] of Object.entries(savedJinAssignments)) {
         next[key] = idMap.get(jinName) ?? -1;
+        if (idMap.has(jinName)) placedJinNames.add(jinName);
+        if (!jinSeatKeysMap.has(jinName)) jinSeatKeysMap.set(jinName, []);
+        jinSeatKeysMap.get(jinName)!.push(key);
       }
+
+      // Rebuild jinAlgoResults so handleJinClick can remove seats when a placed jin is clicked.
+      const unitMap = new Map(units.map((u) => [u.jinName, u]));
+      const reconstructedJinResults: JinAlgoResult[] = [];
+      const reconstructedAlgoResults: AlgoResult[] = [];
+      for (const [jinName, seatKeys] of jinSeatKeysMap.entries()) {
+        const unit = unitMap.get(jinName);
+        const synId = idMap.get(jinName);
+        if (!unit || synId === undefined) continue;
+        const parts = seatKeys[0].split('_');
+        const block = parts[1];
+        const floor = parts[0] === '1F' ? 1 : 2;
+        reconstructedJinResults.push({ syntheticId: synId, jinName, memberTeamIds: unit.memberTeamIds, seatKeys, block, floor, earnedScore: 0 });
+        reconstructedAlgoResults.push({ teamId: synId, seatKeys, block, floor, earnedScore: 0 });
+      }
+
       lastSaved.current = { mode: 'jin', assignments: next };
       setAssignments(next);
+      setJinAlgoResults(reconstructedJinResults);
+      setAlgoResults(reconstructedAlgoResults);
+
+      const statuses = new Map<string, JinPlacementStatus>();
+      for (const u of units) {
+        statuses.set(u.jinName, placedJinNames.has(u.jinName) ? 'placed' : 'unplaced');
+      }
+      setJinStatuses(statuses);
       setIsPreviousView(true);
     } else {
       if (!Object.keys(savedAssignments).length) return;
@@ -81,6 +136,20 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
     localStorage.setItem("seat_score_overrides", JSON.stringify(overrides));
   }, [overrides]);
 
+  function getEffectiveHeadcount(team: Team): number {
+    if (selectedDay === 'base') return team.headcount;
+    if (selectedDay === 'thu') return team.headcount_thu ?? team.headcount;
+    if (selectedDay === 'fri') return team.headcount_fri ?? team.headcount;
+    if (selectedDay === 'sat') return team.headcount_sat ?? team.headcount;
+    return team.headcount_sun ?? team.headcount;
+  }
+
+  // Teams with effective headcount applied — used for algorithm and jin grouping.
+  const effectiveTeams = useMemo(
+    () => teams.map((t) => ({ ...t, headcount: getEffectiveHeadcount(t) })),
+    [teams, selectedDay], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   function addOverride() {
     const key = newKey.trim();
     const delta = parseFloat(newDelta);
@@ -98,11 +167,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
     });
   }
 
-  const jinUnits = useMemo(() => buildJinUnits(teams), [teams]);
-  const jinSyntheticIdMap = useMemo(
-    () => new Map(jinUnits.map((u) => [u.jinName, u.syntheticId])),
-    [jinUnits],
-  );
+  const jinUnits = useMemo(() => buildJinUnits(effectiveTeams), [effectiveTeams]);
 
   // teamMap includes fake entries for jin syntheticIds so FloorView renders correctly
   const teamMap = useMemo(() => {
@@ -118,16 +183,18 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
           jin_name: u.jinName,
           headcount: u.headcount,
           accumulated_score: u.accumulated_score,
+          headcount_thu: null,
+          headcount_fri: null,
+          headcount_sat: null,
+          headcount_sun: null,
         });
       }
     }
     return map;
   }, [teams, mode, jinUnits]);
 
-  const teamColorMap = useMemo(
-    () => computeTeamColors(assignments),
-    [assignments],
-  );
+  const teamColorMap = useMemo(() => computeTeamColors(assignments), [assignments]);
+
   const seatCountMap = useMemo(() => {
     const map = new Map<number, number>();
     for (const teamId of Object.values(assignments)) {
@@ -149,7 +216,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
   const totalDemand =
     mode === 'jin'
       ? jinUnits.reduce((s, u) => s + u.headcount, 0)
-      : teams.reduce((s, t) => s + t.headcount, 0);
+      : effectiveTeams.reduce((s, t) => s + t.headcount, 0);
 
   const totalSeats = useMemo(() => {
     let n = 0;
@@ -158,8 +225,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
         const block = section.id.split("-")[1];
         for (let r = 0; r < section.rows.length; r++) {
           for (let c = 0; c < section.rows[r].count; c++) {
-            if (!isSeatDisabled(`${floor.id}_${block}_R${r + 1}_C${c + 1}`))
-              n++;
+            if (!isSeatDisabled(`${floor.id}_${block}_R${r + 1}_C${c + 1}`)) n++;
           }
         }
       }
@@ -168,21 +234,34 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
   }, []);
 
   function updateHeadcount(teamId: number, val: number) {
+    const v = Math.max(1, val);
     setTeams((prev) =>
-      prev.map((t) =>
-        t.id === teamId ? { ...t, headcount: Math.max(1, val) } : t,
-      ),
+      prev.map((t) => {
+        if (t.id !== teamId) return t;
+        if (selectedDay === 'base') return { ...t, headcount: v };
+        if (selectedDay === 'thu') return { ...t, headcount_thu: v };
+        if (selectedDay === 'fri') return { ...t, headcount_fri: v };
+        if (selectedDay === 'sat') return { ...t, headcount_sat: v };
+        return { ...t, headcount_sun: v };
+      }),
     );
     setIsDirtyHeadcount(true);
   }
 
   async function saveHeadcounts() {
+    const payload =
+      selectedDay === 'base'
+        ? teams.map((t) => ({ team_id: t.id, headcount: t.headcount }))
+        : teams.map((t) => ({
+            team_id: t.id,
+            headcount: getEffectiveHeadcount(t),
+            day: selectedDay,
+          }));
+
     const res = await fetch("/api/teams/headcount", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        teams.map((t) => ({ team_id: t.id, headcount: t.headcount })),
-      ),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       setIsDirtyHeadcount(false);
@@ -200,45 +279,89 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
     setAssignments({});
     setHighlightTeamId(null);
     setIsPreviousView(false);
+    setJinStatuses(new Map());
+    setReadyJin(null);
+    setHoverPreview(null);
   }
 
   function runAlgorithm() {
     if (mode === 'jin') {
-      const fakeTeams = jinUnitsToFakeTeams(jinUnits);
-      const results = generateSeating(fakeTeams, overrides, { jinMode: true });
-      const jinResults = algoResultsToJinResults(results, jinUnits);
-      setJinAlgoResults(jinResults);
-      setAlgoResults(results);
-      const next: Record<string, number> = {};
-      for (const r of results) for (const key of r.seatKeys) next[key] = r.teamId;
-      setAssignments(next);
+      // Only place unplaced jins — skip placed/ready ones.
+      const toPlace =
+        jinStatuses.size === 0
+          ? jinUnits
+          : jinUnits.filter((u) => (jinStatuses.get(u.jinName) ?? 'unplaced') === 'unplaced');
+
+      if (toPlace.length === 0) {
+        setNotice({ type: "ok", msg: "배치할 진이 없습니다" });
+        return;
+      }
+
+      const occupiedRowKeys = getOccupiedRowKeys(assignments);
+      const fakeTeams = jinUnitsToFakeTeams(toPlace);
+      const results = generateSeating(fakeTeams, overrides, {
+        jinMode: true,
+        preOccupiedRowKeys: occupiedRowKeys,
+      });
+      const newJinResults = algoResultsToJinResults(results, toPlace);
+
+      const newSeatAssignments: Record<string, number> = {};
+      for (const r of results) for (const key of r.seatKeys) newSeatAssignments[key] = r.teamId;
+
+      setAlgoResults((prev) => [...prev, ...results]);
+      setJinAlgoResults((prev) => [...prev, ...newJinResults]);
+      setAssignments((prev) => ({ ...prev, ...newSeatAssignments }));
       setIsPreviousView(false);
-      const placed = jinResults.length;
-      setNotice({ type: "ok", msg: `${placed}진 · ${Object.keys(next).length}석 배정 완료` });
+
+      const placedNames = new Set(newJinResults.map((r) => r.jinName));
+      setJinStatuses((prev) => {
+        const next = new Map(prev);
+        for (const u of toPlace) {
+          next.set(u.jinName, placedNames.has(u.jinName) ? 'placed' : 'unplaced');
+        }
+        return next;
+      });
+
+      setNotice({
+        type: "ok",
+        msg: `${newJinResults.length}진 · ${Object.keys(newSeatAssignments).length}석 배정 완료`,
+      });
       return;
     }
 
-    const results = generateSeating(teams, overrides);
+    const results = generateSeating(effectiveTeams, overrides);
     setAlgoResults(results);
     const next: Record<string, number> = {};
     for (const r of results) for (const key of r.seatKeys) next[key] = r.teamId;
     setAssignments(next);
     setIsPreviousView(false);
     const placed = results.filter((r) => r.seatKeys.length > 0).length;
-    setNotice({
-      type: "ok",
-      msg: `${placed}팀 · ${Object.keys(next).length}석 배정 완료`,
-    });
+    setNotice({ type: "ok", msg: `${placed}팀 · ${Object.keys(next).length}석 배정 완료` });
   }
 
   function clearAssignments() {
     setAlgoResults([]);
     setJinAlgoResults([]);
     setHighlightTeamId(null);
+    setReadyJin(null);
+    setHoverPreview(null);
+
     const { mode: m, assignments: a } = lastSaved.current;
     setMode(m);
     setAssignments({ ...a });
     setIsPreviousView(Object.keys(a).length > 0);
+
+    if (m === 'jin') {
+      const placedSynIds = new Set(Object.values(a));
+      const statuses = new Map<string, JinPlacementStatus>();
+      for (const u of jinUnits) {
+        statuses.set(u.jinName, placedSynIds.has(u.syntheticId) ? 'placed' : 'unplaced');
+      }
+      setJinStatuses(statuses);
+    } else {
+      setJinStatuses(new Map());
+    }
+
     if (!Object.keys(a).length) {
       setNotice({ type: "err", msg: "저장된 배치 결과가 없습니다" });
     }
@@ -246,8 +369,19 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
 
   async function saveResults() {
     if (mode === 'jin') {
+      // All jins must be placed before saving.
+      const unplaced = jinUnits.filter(
+        (u) => (jinStatuses.get(u.jinName) ?? 'unplaced') !== 'placed',
+      );
+      if (unplaced.length > 0) {
+        setNotice({
+          type: "err",
+          msg: `배치 미완료 진: ${unplaced.map((u) => u.jinName).join(', ')}`,
+        });
+        return;
+      }
       if (!jinAlgoResults.length) {
-        setNotice({ type: "err", msg: "먼저 자동 배치를 실행해주세요" });
+        setNotice({ type: "err", msg: "배치를 먼저 실행해주세요" });
         return;
       }
       setIsSaving(true);
@@ -299,9 +433,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
             const updated = data.teams?.find(
               (u: { id: number; accumulated_score: number }) => u.id === t.id,
             );
-            return updated
-              ? { ...t, accumulated_score: updated.accumulated_score }
-              : t;
+            return updated ? { ...t, accumulated_score: updated.accumulated_score } : t;
           }),
         );
         setNotice({ type: "ok", msg: "배치 결과 저장 완료" });
@@ -313,6 +445,155 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
     } finally {
       setIsSaving(false);
     }
+  }
+
+  // --- Jin placement handlers ---
+
+  function handleJinClick(u: JinUnit) {
+    const currentStatus = jinStatuses.get(u.jinName) ?? 'unplaced';
+
+    if (currentStatus === 'ready') {
+      setReadyJin(null);
+      setHoverPreview(null);
+      setJinStatuses((prev) => {
+        const next = new Map(prev);
+        next.set(u.jinName, 'unplaced');
+        return next;
+      });
+      return;
+    }
+
+    if (currentStatus === 'placed') {
+      const jinResult = jinAlgoResults.find((r) => r.jinName === u.jinName);
+      if (jinResult) {
+        setJinAlgoResults((prev) => prev.filter((r) => r.jinName !== u.jinName));
+        setAlgoResults((prev) => prev.filter((r) => r.teamId !== jinResult.syntheticId));
+        setAssignments((prev) => {
+          const next = { ...prev };
+          for (const key of jinResult.seatKeys) delete next[key];
+          return next;
+        });
+      }
+    }
+
+    // Deactivate any other ready jin.
+    if (readyJin !== null && readyJin !== u.jinName) {
+      setJinStatuses((prev) => {
+        const next = new Map(prev);
+        next.set(readyJin, 'unplaced');
+        return next;
+      });
+    }
+
+    setReadyJin(u.jinName);
+    setHoverPreview(null);
+    setJinStatuses((prev) => {
+      const next = new Map(prev);
+      next.set(u.jinName, 'ready');
+      return next;
+    });
+  }
+
+  function handleRowClick(sectionId: string, rowIdx: number) {
+    if (!readyJin) return;
+    const jin = jinUnits.find((u) => u.jinName === readyJin);
+    if (!jin) return;
+
+    const [floorId, blockLabel] = sectionId.split('-');
+    const result = tryPlaceAtRow(
+      sectionId,
+      floorId as '1F' | '2F',
+      rowIdx,
+      jin.headcount,
+      overrides,
+    );
+
+    if (!result.feasible) {
+      setNotice({ type: "err", msg: "해당 행부터 배치 불가합니다" });
+      return;
+    }
+
+    // Find conflicting placed jins whose seats overlap with the new placement.
+    const conflictingJinNames = new Set<string>();
+    for (const key of result.seatKeys) {
+      const existingId = assignments[key];
+      if (existingId !== undefined) {
+        const existingUnit = jinUnits.find((u) => u.syntheticId === existingId);
+        if (existingUnit && existingUnit.jinName !== readyJin) {
+          conflictingJinNames.add(existingUnit.jinName);
+        }
+      }
+    }
+
+    const keysToRemove = new Set<string>();
+    for (const conflictName of conflictingJinNames) {
+      const cr = jinAlgoResults.find((r) => r.jinName === conflictName);
+      if (cr) for (const k of cr.seatKeys) keysToRemove.add(k);
+    }
+
+    const newJinResult: JinAlgoResult = {
+      syntheticId: jin.syntheticId,
+      jinName: jin.jinName,
+      memberTeamIds: jin.memberTeamIds,
+      seatKeys: result.seatKeys,
+      block: blockLabel,
+      floor: floorId === '1F' ? 1 : 2,
+      earnedScore: result.earnedScore,
+    };
+    const newAlgoResult: AlgoResult = {
+      teamId: jin.syntheticId,
+      seatKeys: result.seatKeys,
+      block: blockLabel,
+      floor: floorId === '1F' ? 1 : 2,
+      earnedScore: result.earnedScore,
+    };
+
+    setAssignments((prev) => {
+      const next = { ...prev };
+      for (const k of keysToRemove) delete next[k];
+      for (const k of result.seatKeys) next[k] = jin.syntheticId;
+      return next;
+    });
+    setJinAlgoResults((prev) => [
+      ...prev.filter(
+        (r) => !conflictingJinNames.has(r.jinName) && r.jinName !== readyJin,
+      ),
+      newJinResult,
+    ]);
+    setAlgoResults((prev) => [
+      ...prev.filter((r) => {
+        const unit = jinUnits.find((u) => u.syntheticId === r.teamId);
+        return !unit || (!conflictingJinNames.has(unit.jinName) && unit.jinName !== readyJin);
+      }),
+      newAlgoResult,
+    ]);
+    setJinStatuses((prev) => {
+      const next = new Map(prev);
+      next.set(readyJin, 'placed');
+      for (const name of conflictingJinNames) next.set(name, 'unplaced');
+      return next;
+    });
+    setReadyJin(null);
+    setHoverPreview(null);
+  }
+
+  function handleRowHover(sectionId: string, rowIdx: number) {
+    if (!readyJin) return;
+    const jin = jinUnits.find((u) => u.jinName === readyJin);
+    if (!jin) return;
+    const [floorId] = sectionId.split('-');
+    const result = tryPlaceAtRow(
+      sectionId,
+      floorId as '1F' | '2F',
+      rowIdx,
+      jin.headcount,
+      overrides,
+    );
+    setHoverPreview({ seatKeys: new Set(result.seatKeys), feasible: result.feasible });
+  }
+
+  function handleRowLeave() {
+    if (readyJin) setHoverPreview(null);
   }
 
   const sortedTeams = useMemo(
@@ -368,7 +649,6 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
             <span className="border border-foreground px-3 py-1 tracking-widest">
               {assignedTotal} / {totalSeats}석
             </span>
-
             <span className="border border-foreground px-3 py-1 tracking-widest">
               {mode === 'jin' ? `${jinUnits.length}진` : `${teams.length}팀`} · {totalDemand}명
             </span>
@@ -392,9 +672,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
               onClick={() => switchMode('team')}
               className={cn(
                 "font-display font-bold text-xs py-2 tracking-wider transition-colors",
-                mode === 'team'
-                  ? "bg-foreground text-background"
-                  : "hover:bg-foreground/10",
+                mode === 'team' ? "bg-foreground text-background" : "hover:bg-foreground/10",
               )}
             >
               팀별
@@ -403,13 +681,35 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
               onClick={() => switchMode('jin')}
               className={cn(
                 "font-display font-bold text-xs py-2 tracking-wider transition-colors border-l border-foreground",
-                mode === 'jin'
-                  ? "bg-foreground text-background"
-                  : "hover:bg-foreground/10",
+                mode === 'jin' ? "bg-foreground text-background" : "hover:bg-foreground/10",
               )}
             >
               진별
             </button>
+          </div>
+
+          {/* Day selector */}
+          <div>
+            <span className="font-display text-[9px] font-bold tracking-[0.25em] uppercase text-foreground/40 block mb-1.5">
+              배치 회차
+            </span>
+            <div className="flex border border-foreground">
+              {((['base', 'thu', 'fri', 'sat', 'sun'] as const)).map((d, i) => (
+                <button
+                  key={d}
+                  onClick={() => { setSelectedDay(d); setIsDirtyHeadcount(false); }}
+                  className={cn(
+                    "flex-1 font-display font-bold text-[10px] py-1.5 tracking-wider transition-colors",
+                    i > 0 && "border-l border-foreground",
+                    selectedDay === d
+                      ? "bg-foreground text-background"
+                      : "hover:bg-foreground/10",
+                  )}
+                >
+                  {DAY_LABELS[d]}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Actions */}
@@ -447,8 +747,13 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
                   <span className="font-display text-[10px] font-bold tracking-[0.25em] uppercase text-foreground/50">
                     Jins · 누적점수순
                   </span>
+                  {readyJin && (
+                    <span className="text-[9px] font-display text-amber-600 font-bold animate-pulse">
+                      행 클릭하여 배치
+                    </span>
+                  )}
                 </div>
-                <div className="grid grid-cols-[12px_1fr_40px_28px_34px_34px] gap-2 px-1 mb-1 text-[9px] font-display tracking-wider uppercase text-foreground/50">
+                <div className="grid grid-cols-[16px_1fr_40px_28px_34px_34px] gap-2 px-1 mb-1 text-[9px] font-display tracking-wider uppercase text-foreground/50">
                   <span />
                   <span>진</span>
                   <span>인원</span>
@@ -459,33 +764,40 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
                 <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
                   {sortedJinUnits.map((u) => {
                     const earned = jinEarnedScoreMap.get(u.syntheticId);
+                    const status = jinStatuses.get(u.jinName) ?? 'unplaced';
                     return (
                       <div
                         key={u.jinName}
-                        onClick={() =>
-                          setHighlightTeamId((prev) =>
-                            prev === u.syntheticId ? null : u.syntheticId,
-                          )
-                        }
+                        onClick={() => handleJinClick(u)}
+                        onMouseEnter={() => setHoveredJinName(u.jinName)}
+                        onMouseLeave={() => setHoveredJinName(null)}
                         className={cn(
-                          "grid grid-cols-[12px_1fr_40px_28px_34px_34px] gap-2 items-center cursor-pointer -mx-1 px-1 py-0.5 transition-colors",
-                          highlightTeamId === u.syntheticId
-                            ? "bg-foreground/15 ring-1 ring-inset ring-foreground"
+                          "grid grid-cols-[16px_1fr_40px_28px_34px_34px] gap-2 items-center cursor-pointer -mx-1 px-1 py-0.5 transition-colors",
+                          status === 'ready'
+                            ? "bg-amber-50 ring-1 ring-inset ring-amber-400"
                             : "hover:bg-foreground/8",
                         )}
                       >
-                        <span
-                          className="h-3 w-3 shrink-0 border border-foreground/50"
-                          style={{
-                            background: teamColorMap.get(u.syntheticId) ?? "oklch(0.88 0 0)",
-                          }}
-                        />
+                        {/* Status icon */}
+                        {status === 'placed' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                        ) : status === 'ready' ? (
+                          <Circle className="h-3.5 w-3.5 shrink-0 text-amber-500 animate-pulse" />
+                        ) : (
+                          <Circle className="h-3.5 w-3.5 shrink-0 text-foreground/20" />
+                        )}
                         <div className="min-w-0">
                           <div className="font-display text-xs font-bold truncate">
                             {u.jinName}
                           </div>
                           <div className="text-[10px] text-foreground/50 truncate">
                             {u.memberTeamIds.length}교회
+                            {status === 'ready' && (
+                              <span className="ml-1 text-amber-600">배치 준비</span>
+                            )}
+                            {status === 'placed' && (
+                              <span className="ml-1 text-green-600">배치완료</span>
+                            )}
                           </div>
                         </div>
                         <span className="text-[10px] font-display tabular-nums text-right text-foreground/60">
@@ -535,9 +847,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
                       <div
                         key={t.id}
                         onClick={() =>
-                          setHighlightTeamId((prev) =>
-                            prev === t.id ? null : t.id,
-                          )
+                          setHighlightTeamId((prev) => (prev === t.id ? null : t.id))
                         }
                         className={cn(
                           "grid grid-cols-[12px_1fr_48px_28px_34px_34px] gap-2 items-center cursor-pointer -mx-1 px-1 py-0.5 transition-colors",
@@ -548,9 +858,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
                       >
                         <span
                           className="h-3 w-3 shrink-0 border border-foreground/50"
-                          style={{
-                            background: teamColorMap.get(t.id) ?? "oklch(0.88 0 0)",
-                          }}
+                          style={{ background: teamColorMap.get(t.id) ?? "oklch(0.88 0 0)" }}
                         />
                         <div className="min-w-0">
                           <div className="font-display text-xs font-bold truncate">
@@ -566,7 +874,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
                           type="number"
                           min={1}
                           max={60}
-                          value={t.headcount}
+                          value={getEffectiveHeadcount(t)}
                           onChange={(e) =>
                             updateHeadcount(t.id, parseInt(e.target.value) || 1)
                           }
@@ -622,19 +930,12 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
                 {Object.entries(overrides).length > 0 && (
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {Object.entries(overrides).map(([key, delta]) => (
-                      <div
-                        key={key}
-                        className="flex items-center gap-1 text-[10px] font-mono"
-                      >
-                        <span className="flex-1 truncate text-foreground/70">
-                          {key}
-                        </span>
+                      <div key={key} className="flex items-center gap-1 text-[10px] font-mono">
+                        <span className="flex-1 truncate text-foreground/70">{key}</span>
                         <span
                           className={cn(
                             "w-10 text-right tabular-nums font-bold shrink-0",
-                            delta > 0
-                              ? "text-foreground"
-                              : "text-foreground/50",
+                            delta > 0 ? "text-foreground" : "text-foreground/50",
                           )}
                         >
                           {delta > 0 ? "+" : ""}
@@ -681,6 +982,22 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
 
           {/* Legend */}
           <div className="border-t border-foreground pt-4 space-y-2 text-xs text-foreground/50">
+            {mode === 'jin' && (
+              <>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" />
+                  <span>배치완료</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Circle className="h-3 w-3 text-amber-500 shrink-0" />
+                  <span>배치 준비 (클릭 후 행 선택)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Circle className="h-3 w-3 text-foreground/20 shrink-0" />
+                  <span>배치 미완료</span>
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 border border-foreground/30 bg-foreground/10 shrink-0" />
               <span>비활성 좌석 (POP 구역)</span>
@@ -693,7 +1010,10 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
         </aside>
 
         {/* Floor map */}
-        <main className="bg-background p-4 md:p-8 space-y-12 overflow-x-auto">
+        <main
+          className="bg-background p-4 md:p-8 space-y-12 overflow-x-auto"
+          onMouseLeave={handleRowLeave}
+        >
           {FLOORS.map((floor) => (
             <FloorView
               key={floor.id}
@@ -701,7 +1021,13 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
               assignments={assignments}
               teamMap={teamMap}
               teamColorMap={teamColorMap}
-              highlightTeamId={highlightTeamId}
+              highlightTeamId={mode === 'jin' ? null : highlightTeamId}
+              hoveredJinName={mode === 'jin' ? hoveredJinName : null}
+              hasReadyJin={!!readyJin}
+              hoverPreview={hoverPreview}
+              onRowClick={handleRowClick}
+              onRowHover={handleRowHover}
+              onRowLeave={handleRowLeave}
             />
           ))}
         </main>
@@ -716,12 +1042,24 @@ function FloorView({
   teamMap,
   teamColorMap,
   highlightTeamId,
+  hoveredJinName,
+  hasReadyJin,
+  hoverPreview,
+  onRowClick,
+  onRowHover,
+  onRowLeave,
 }: {
   floor: FloorDef;
   assignments: Record<string, number>;
   teamMap: Map<number, Team>;
   teamColorMap: Map<number, string>;
   highlightTeamId: number | null;
+  hoveredJinName: string | null;
+  hasReadyJin: boolean;
+  hoverPreview: { seatKeys: Set<string>; feasible: boolean } | null;
+  onRowClick: (sectionId: string, rowIdx: number) => void;
+  onRowHover: (sectionId: string, rowIdx: number) => void;
+  onRowLeave: () => void;
 }) {
   return (
     <section>
@@ -729,9 +1067,7 @@ function FloorView({
         <span className="bg-foreground text-background font-display font-bold text-xs px-2 py-1 tracking-[0.2em]">
           {floor.id}
         </span>
-        <h2 className="font-display text-xl font-bold tracking-tight">
-          {floor.label}
-        </h2>
+        <h2 className="font-display text-xl font-bold tracking-tight">{floor.label}</h2>
       </div>
 
       <div className="mx-auto max-w-[60%] border border-foreground bg-foreground text-background text-center font-display text-[10px] font-bold tracking-[0.4em] py-2 mb-1">
@@ -754,6 +1090,12 @@ function FloorView({
                 teamMap={teamMap}
                 teamColorMap={teamColorMap}
                 highlightTeamId={highlightTeamId}
+                hoveredJinName={hoveredJinName}
+                hasReadyJin={hasReadyJin}
+                hoverPreview={hoverPreview}
+                onRowClick={onRowClick}
+                onRowHover={onRowHover}
+                onRowLeave={onRowLeave}
               />
               {idx < floor.sections.length - 1 && (
                 <div className="w-3 md:w-5 self-stretch flex items-center justify-center">
@@ -775,6 +1117,12 @@ function SectionView({
   teamMap,
   teamColorMap,
   highlightTeamId,
+  hoveredJinName,
+  hasReadyJin,
+  hoverPreview,
+  onRowClick,
+  onRowHover,
+  onRowLeave,
 }: {
   section: SectionDef;
   floorId: "1F" | "2F";
@@ -782,11 +1130,16 @@ function SectionView({
   teamMap: Map<number, Team>;
   teamColorMap: Map<number, string>;
   highlightTeamId: number | null;
+  hoveredJinName: string | null;
+  hasReadyJin: boolean;
+  hoverPreview: { seatKeys: Set<string>; feasible: boolean } | null;
+  onRowClick: (sectionId: string, rowIdx: number) => void;
+  onRowHover: (sectionId: string, rowIdx: number) => void;
+  onRowLeave: () => void;
 }) {
   const block = section.id.split("-")[1];
   const maxCols = Math.max(...section.rows.map((r) => r.count));
 
-  // Precompute which rows are active (not disabled) for correct score display
   const activeRowNums = section.rows
     .map((_, r) => r)
     .filter((r) => !isSeatDisabled(`${floorId}_${block}_R${r + 1}_C1`));
@@ -801,32 +1154,34 @@ function SectionView({
         {section.rows.map((row, rIdx) => {
           const leftPad = Math.floor((maxCols - row.count) / 2);
           const isActive = activeRowNums.includes(rIdx);
-          const rowScore = isActive
-            ? getBaseScore(floorId, rIdx, activeCount)
-            : null;
+          const rowScore = isActive ? getBaseScore(floorId, rIdx, activeCount) : null;
 
           const rowTeamId = assignments[`${floorId}_${block}_R${rIdx + 1}_C1`];
           const prevRowTeamId =
-            rIdx > 0
-              ? assignments[`${floorId}_${block}_R${rIdx}_C1`]
-              : undefined;
+            rIdx > 0 ? assignments[`${floorId}_${block}_R${rIdx}_C1`] : undefined;
           const isTeamStart = !!rowTeamId && rowTeamId !== prevRowTeamId;
           const rowTeam = isTeamStart ? teamMap.get(rowTeamId) : undefined;
 
+          const isRowClickable = hasReadyJin && isActive;
+
           return (
-            <div key={rIdx} className="flex gap-[3px] items-center">
+            <div
+              key={rIdx}
+              className={cn("flex gap-[3px] items-center", isRowClickable && "cursor-pointer")}
+              onClick={isRowClickable ? () => onRowClick(section.id, rIdx) : undefined}
+              onMouseEnter={isRowClickable ? () => onRowHover(section.id, rIdx) : undefined}
+              onMouseLeave={isRowClickable ? () => onRowLeave() : undefined}
+            >
               <span className="font-display text-[9px] text-foreground/40 w-4 text-right tabular-nums shrink-0">
                 {rIdx + 1}
               </span>
               <div
                 className="grid gap-[3px] relative"
-                style={{
-                  gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))`,
-                }}
+                style={{ gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))` }}
               >
                 {isTeamStart && rowTeam && (
                   <div
-                    className="absolute inset-0 z-10 flex items-center px-1 pointer-events-none font-display text-[7px] font-bold truncate text-foreground"
+                    className="absolute inset-0 z-10 flex items-center px-1 pointer-events-none font-display text-[9px] font-bold truncate text-foreground"
                     style={{ textShadow: "0 0 3px #fff, 0 0 3px #fff" }}
                   >
                     {rowTeam.church_name}
@@ -834,21 +1189,28 @@ function SectionView({
                 )}
                 {Array.from({ length: maxCols }).map((_, cIdx) => {
                   const inRow = cIdx >= leftPad && cIdx < leftPad + row.count;
-                  if (!inRow)
-                    return (
-                      <span key={cIdx} className="w-4 h-4 md:w-5 md:h-5" />
-                    );
+                  if (!inRow) return <span key={cIdx} className="w-4 h-4 md:w-5 md:h-5" />;
+
                   const key = `${floorId}_${block}_R${rIdx + 1}_C${cIdx - leftPad + 1}`;
                   const disabled = isSeatDisabled(key);
                   const teamId = assignments[key];
                   const team = teamId ? teamMap.get(teamId) : undefined;
-                  const bg = disabled
-                    ? "oklch(0.85 0 0)"
-                    : teamColorMap.get(teamId);
-                  const isHighlight =
-                    highlightTeamId !== null && teamId === highlightTeamId;
-                  const isDimmed =
-                    highlightTeamId !== null && !!teamId && !isHighlight;
+                  const isHighlight = highlightTeamId !== null && teamId === highlightTeamId;
+                  const isDimmed = highlightTeamId !== null && !!teamId && !isHighlight;
+                  const isJinHover = hoveredJinName !== null && !!team && team.jin_name === hoveredJinName;
+
+                  const isInPreview = !disabled && (hoverPreview?.seatKeys.has(key) ?? false);
+                  let bg: string | undefined;
+                  if (disabled) {
+                    bg = "oklch(0.85 0 0)";
+                  } else if (isInPreview) {
+                    bg = hoverPreview!.feasible
+                      ? "oklch(0.7 0.18 60 / 85%)"   // orange preview
+                      : "oklch(0.5 0.22 20 / 85%)";  // red preview (infeasible)
+                  } else {
+                    bg = teamColorMap.get(teamId);
+                  }
+
                   return (
                     <div
                       key={cIdx}
@@ -860,13 +1222,14 @@ function SectionView({
                             : `${section.label}구역 ${rIdx + 1}열`
                       }
                       className={cn(
-                        "w-4 h-4 md:w-5 md:h-5 border border-foreground/40 flex items-center justify-center transition-opacity",
+                        "w-4 h-4 md:w-5 md:h-5 flex items-center justify-center transition-opacity",
+                        isJinHover ? "border-2 border-foreground" : "border border-foreground/40",
                         isDimmed && "opacity-15",
                         isHighlight && "ring-2 ring-foreground ring-offset-0",
                       )}
                       style={{ background: bg }}
                     >
-                      {!disabled && rowScore !== null && (
+                      {!disabled && !isInPreview && rowScore !== null && (
                         <span className="text-[6px] md:text-[7px] font-display tabular-nums leading-none select-none pointer-events-none text-black/50">
                           {rowScore}
                         </span>

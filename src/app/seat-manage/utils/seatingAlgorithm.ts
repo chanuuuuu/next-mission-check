@@ -198,7 +198,7 @@ function shuffle<T>(arr: T[]): T[] {
 export function generateSeating(
   teams: Team[],
   dynamicOverrides: Record<string, number> = {},
-  options: { jinMode?: boolean } = {},
+  options: { jinMode?: boolean; preOccupiedRowKeys?: Set<string> } = {},
 ): AlgoResult[] {
   if (!teams.length) return []
 
@@ -228,7 +228,7 @@ export function generateSeating(
   // 2F: all sections in one pool, front-first sort applied at allocation time
   const overflow2F  = blocks2F.map(b => [...floor2.get(b)!.front, ...floor2.get(b)!.back])
 
-  const usedRowKeys = new Set<string>()
+  const usedRowKeys = new Set<string>(options.preOccupiedRowKeys ?? [])
   const results: AlgoResult[] = []
 
   function forcedPlace(team: Team, orderedRows: RowInfo[]): boolean {

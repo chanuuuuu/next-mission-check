@@ -13,7 +13,11 @@ export async function GET() {
       c.team_type,
       c.jin_name,
       t.headcount,
-      t.accumulated_score
+      t.accumulated_score,
+      t.headcount_thu,
+      t.headcount_fri,
+      t.headcount_sat,
+      t.headcount_sun
     FROM teams t
     JOIN churches c ON t.church_id = c.id
     ORDER BY t.accumulated_score ASC

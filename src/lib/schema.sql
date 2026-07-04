@@ -101,3 +101,13 @@ CREATE TABLE IF NOT EXISTS seat_assignments (
 
 CREATE INDEX IF NOT EXISTS idx_seat_assignments_phase_team ON seat_assignments (phase_id, team_id);
 CREATE INDEX IF NOT EXISTS idx_teams_church                ON teams (church_id);
+
+-- ============================================================
+-- 요일별 headcount (목/금/토/일 4회 배치 세션 지원)
+-- 기존 DB에 적용: 아래 ALTER TABLE 실행
+-- 신규 설치 시에는 teams CREATE TABLE에 이미 포함됨
+-- ============================================================
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_thu INT DEFAULT NULL;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_fri INT DEFAULT NULL;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_sat INT DEFAULT NULL;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_sun INT DEFAULT NULL;
