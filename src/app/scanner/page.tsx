@@ -7,6 +7,11 @@ import { CHURCH_NAMES } from "@/lib/churches";
 
 type ScanStatus = "idle" | "scanning" | "error";
 
+// 카메라 캡처 해상도. 높을수록 QR이 더 선명하게 잡혀 먼 거리에서도 인식됨.
+// 기본값(640x480)은 광각 렌즈에서 QR 픽셀이 부족해 가까이 대야 인식됨.
+// 인식 거리 조정 시 이 값을 수정 (카메라 지원 최대치까지만 적용됨).
+const CAPTURE_RESOLUTION = { width: 1920, height: 1080 };
+
 export default function ScannerPage() {
   const router = useRouter();
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
@@ -73,7 +78,16 @@ export default function ScannerPage() {
       scanner
         .start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 420, height: 420 } },
+          {
+            fps: 10,
+            qrbox: { width: 420, height: 420 },
+            // config.videoConstraints가 있으면 첫 인자 대신 이게 적용됨 (해상도 상향 목적)
+            videoConstraints: {
+              facingMode: "environment",
+              width: { ideal: CAPTURE_RESOLUTION.width },
+              height: { ideal: CAPTURE_RESOLUTION.height },
+            },
+          },
           handleScanSuccess,
           () => {},
         )
