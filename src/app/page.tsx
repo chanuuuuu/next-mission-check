@@ -2,10 +2,10 @@ import Link from "next/link";
 
 const LINKS = [
   {
-    href: "/generate",
-    label: "체크인용 QR 조회",
+    href: "/accommodation",
+    label: "배정된 숙소 조회",
     sub: "01",
-    desc: "교회 선택 → QR 생성",
+    desc: "교회 선택 → 숙소 확인",
   },
   {
     href: "/seat",
@@ -24,7 +24,7 @@ export default function Home() {
             Mission Process
           </span>
           <h1 className="font-display text-3xl font-bold tracking-tight mt-2 leading-none">
-            영동 선교 시작하기
+            영동 선교 헬퍼
           </h1>
           <p className="text-sm text-muted-foreground mt-3">
             확인할 작업을 선택해주세요.

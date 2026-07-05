@@ -27,7 +27,7 @@ export default function GeneratePage() {
 
   const handleNext = () => {
     if (!selectedChurch) return
-    router.push(`/generate/${encodeChurchParam(selectedChurch.name, selectedChurch.id)}`)
+    router.push(`/accommodation/${encodeChurchParam(selectedChurch.name, selectedChurch.id)}`)
   }
 
   return (
