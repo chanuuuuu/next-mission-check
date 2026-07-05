@@ -111,3 +111,20 @@ ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_thu INT DEFAULT NULL;
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_fri INT DEFAULT NULL;
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_sat INT DEFAULT NULL;
 ALTER TABLE teams ADD COLUMN IF NOT EXISTS headcount_sun INT DEFAULT NULL;
+
+-- ============================================================
+-- 숙소 배정 (docs/숙소배정_통합.json 적재용)
+-- group/team/church명은 church_id별로 고정값이므로 churches JOIN으로 조회
+-- (별도 저장하지 않음 — 중복 데이터 방지)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS accommodations (
+    id         SERIAL PRIMARY KEY,
+    church_id  INT         NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
+    building   VARCHAR(20) NOT NULL,  -- '[신관]' | '[1관]' | '[AJ]'
+    room       INT         NOT NULL,
+    name       VARCHAR(50) NOT NULL, -- 인원명, '타팀 1명' 등 placeholder 포함(동일 방 내 중복 가능)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_accommodations_church        ON accommodations (church_id);
+CREATE INDEX IF NOT EXISTS idx_accommodations_church_room    ON accommodations (church_id, building, room);

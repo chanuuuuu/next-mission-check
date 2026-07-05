@@ -8,6 +8,16 @@ export interface Church {
   created_at: string
 }
 
+export interface AccommodationRoom {
+  room: number
+  names: string[]
+}
+
+export interface AccommodationBuilding {
+  building: string
+  rooms: AccommodationRoom[]
+}
+
 export interface Checkin {
   id: number
   church_id: number
