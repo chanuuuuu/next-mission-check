@@ -7,11 +7,17 @@ import { AccommodationBuilding } from '@/types'
 interface Props {
   churchName: string
   buildings: AccommodationBuilding[]
+  backHref: string
+  backLabel: string
 }
 
-export function AccommodationClient({ churchName, buildings }: Props) {
+function countRealPeople(names: string[]) {
+  return names.filter((name) => !name.startsWith('타팀')).length
+}
+
+export function AccommodationClient({ churchName, buildings, backHref, backLabel }: Props) {
   const totalPeople = buildings.reduce(
-    (sum, b) => sum + b.rooms.reduce((rs, r) => rs + r.names.length, 0),
+    (sum, b) => sum + b.rooms.reduce((rs, r) => rs + countRealPeople(r.names), 0),
     0
   )
 
@@ -21,10 +27,10 @@ export function AccommodationClient({ churchName, buildings }: Props) {
 
         <header className="border-b border-foreground px-6 pt-6 pb-5 shrink-0">
           <Link
-            href="/accommodation"
+            href={backHref}
             className="inline-flex items-center gap-0.5 font-display text-sm font-bold tracking-tight text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ChevronLeft className="h-3.5 w-3.5" /> 교회 다시 선택
+            <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
           </Link>
           <div className="mt-2 flex items-center justify-between gap-3">
             <h1 className="text-xl font-bold tracking-tight truncate">{churchName}</h1>
@@ -52,7 +58,7 @@ export function AccommodationClient({ churchName, buildings }: Props) {
 }
 
 function BuildingBlock({ building }: { building: AccommodationBuilding }) {
-  const totalPeople = building.rooms.reduce((s, r) => s + r.names.length, 0)
+  const totalPeople = building.rooms.reduce((s, r) => s + countRealPeople(r.names), 0)
 
   return (
     <section>
@@ -70,30 +76,32 @@ function BuildingBlock({ building }: { building: AccommodationBuilding }) {
               <span className="font-display text-xl font-bold tabular-nums tracking-wider">{r.room}</span>
               <span className="inline-flex items-center gap-1 font-display text-[11px] tracking-widest uppercase opacity-90">
                 <Users className="h-3 w-3" />
-                <span className="tabular-nums">{r.names.length}</span>
+                <span className="tabular-nums">{countRealPeople(r.names)}</span>
               </span>
             </div>
             <ol className="divide-y divide-foreground/15 border-t border-foreground">
-              {r.names.map((name, i) => {
-                const isPlaceholder = name.startsWith('타팀')
-                return (
-                  <li
-                    key={i}
-                    className={`flex items-center gap-3 px-3 py-2 ${isPlaceholder ? 'bg-muted/40' : ''}`}
-                  >
-                    <span className="font-display text-[10px] tracking-widest text-muted-foreground tabular-nums w-4">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span
-                      className={`text-[15px] truncate flex-1 ${
-                        isPlaceholder ? 'italic text-muted-foreground' : 'font-medium'
-                      }`}
+              {[...r.names]
+                .sort((a, b) => Number(a.startsWith('타팀')) - Number(b.startsWith('타팀')))
+                .map((name, i) => {
+                  const isPlaceholder = name.startsWith('타팀')
+                  return (
+                    <li
+                      key={i}
+                      className={`flex items-center gap-3 px-3 py-2 ${isPlaceholder ? 'bg-muted/40' : ''}`}
                     >
-                      {name}
-                    </span>
-                  </li>
-                )
-              })}
+                      <span className="font-display text-[10px] tracking-widest text-muted-foreground tabular-nums w-4">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span
+                        className={`text-[15px] truncate flex-1 ${
+                          isPlaceholder ? 'italic text-muted-foreground' : 'font-medium'
+                        }`}
+                      >
+                        {name}
+                      </span>
+                    </li>
+                  )
+                })}
             </ol>
           </li>
         ))}

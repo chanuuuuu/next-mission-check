@@ -1,6 +1,6 @@
 import { AccommodationClient } from './AccommodationClient'
 import { AccommodationBuilding } from '@/types'
-import { decodeChurchParam } from '@/lib/encode'
+import { decodeChurchParam, decodeAccommodationLookupParam } from '@/lib/encode'
 import { CHURCH_NAMES } from '@/lib/churches'
 
 interface Props {
@@ -9,7 +9,8 @@ interface Props {
 
 export default async function AccommodationPage({ params }: Props) {
   const { encodedId } = await params
-  const churchId = decodeChurchParam(encodedId)
+  const lookup = decodeAccommodationLookupParam(encodedId)
+  const churchId = lookup?.churchId ?? decodeChurchParam(encodedId)
 
   if (!churchId) {
     return (
@@ -34,8 +35,19 @@ export default async function AccommodationPage({ params }: Props) {
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-  const res = await fetch(`${baseUrl}/api/accommodations/${churchId}`, { cache: 'no-store' })
+  const qs = lookup ? `?number=${lookup.number}` : ''
+  const res = await fetch(`${baseUrl}/api/accommodations/${churchId}${qs}`, { cache: 'no-store' })
   const buildings: AccommodationBuilding[] = await res.json()
 
-  return <AccommodationClient churchName={churchName} buildings={buildings} />
+  const backHref = lookup ? '/search-accommodation' : '/accommodation'
+  const backLabel = lookup ? '번호 다시 입력' : '교회 다시 선택'
+
+  return (
+    <AccommodationClient
+      churchName={churchName}
+      buildings={buildings}
+      backHref={backHref}
+      backLabel={backLabel}
+    />
+  )
 }
