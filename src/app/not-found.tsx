@@ -25,10 +25,10 @@ export default function NotFound() {
 
         <div className="px-6 py-6 border-t border-foreground flex-shrink-0">
           <Link
-            href="/generate"
+            href="/"
             className="block w-full bg-brand text-white py-4 font-display font-bold uppercase tracking-widest text-sm text-center transition-colors hover:bg-brand/90"
           >
-            체크인 시작하기
+            처음으로 돌아가기
           </Link>
         </div>
 
