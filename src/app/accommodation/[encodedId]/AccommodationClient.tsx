@@ -1,30 +1,35 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { ChevronLeft, Users } from 'lucide-react'
-import { AccommodationBuilding } from '@/types'
+import Link from "next/link";
+import { ChevronLeft, Users } from "lucide-react";
+import { AccommodationBuilding } from "@/types";
 
 interface Props {
-  churchName: string
-  buildings: AccommodationBuilding[]
-  backHref: string
-  backLabel: string
+  churchName: string;
+  buildings: AccommodationBuilding[];
+  backHref: string;
+  backLabel: string;
 }
 
 function countRealPeople(names: string[]) {
-  return names.filter((name) => !name.startsWith('타팀')).length
+  return names.filter((name) => !name.startsWith("타팀")).length;
 }
 
-export function AccommodationClient({ churchName, buildings, backHref, backLabel }: Props) {
+export function AccommodationClient({
+  churchName,
+  buildings,
+  backHref,
+  backLabel,
+}: Props) {
   const totalPeople = buildings.reduce(
-    (sum, b) => sum + b.rooms.reduce((rs, r) => rs + countRealPeople(r.names), 0),
-    0
-  )
+    (sum, b) =>
+      sum + b.rooms.reduce((rs, r) => rs + countRealPeople(r.names), 0),
+    0,
+  );
 
   return (
     <div className="h-screen bg-muted flex justify-center overflow-hidden">
       <div className="w-full max-w-[480px] bg-background border-x border-foreground h-full flex flex-col animate-[var(--animate-slide-up)]">
-
         <header className="border-b border-foreground px-6 pt-6 pb-5 shrink-0">
           <Link
             href={backHref}
@@ -33,11 +38,17 @@ export function AccommodationClient({ churchName, buildings, backHref, backLabel
             <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
           </Link>
           <div className="mt-2 flex items-center justify-between gap-3">
-            <h1 className="text-xl font-bold tracking-tight truncate">{churchName}</h1>
+            <h1 className="text-3xl font-bold tracking-tight truncate">
+              {churchName}
+            </h1>
             <div className="flex shrink-0 items-center gap-1.5 border border-foreground px-3 py-1.5 font-display">
               <Users className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">인원</span>
-              <span className="text-base font-bold tabular-nums">{totalPeople}</span>
+              <span className="text-[10px] tracking-widest uppercase text-muted-foreground">
+                인원
+              </span>
+              <span className="text-base font-bold tabular-nums">
+                {totalPeople}
+              </span>
             </div>
           </div>
         </header>
@@ -48,22 +59,28 @@ export function AccommodationClient({ churchName, buildings, backHref, backLabel
               해당 교회의 숙소 배정 정보가 없습니다.
             </p>
           ) : (
-            buildings.map((b) => <BuildingBlock key={b.building} building={b} />)
+            buildings.map((b) => (
+              <BuildingBlock key={b.building} building={b} />
+            ))
           )}
         </div>
-
       </div>
     </div>
-  )
+  );
 }
 
 function BuildingBlock({ building }: { building: AccommodationBuilding }) {
-  const totalPeople = building.rooms.reduce((s, r) => s + countRealPeople(r.names), 0)
+  const totalPeople = building.rooms.reduce(
+    (s, r) => s + countRealPeople(r.names),
+    0,
+  );
 
   return (
     <section>
       <div className="mb-2.5 flex items-baseline justify-between border-b border-foreground pb-1.5">
-        <span className="font-display font-bold text-lg">{building.building}</span>
+        <span className="font-display font-bold text-lg">
+          {building.building}
+        </span>
         <span className="font-display text-[10px] tracking-[0.2em] uppercase text-muted-foreground tabular-nums">
           {building.rooms.length}room · {totalPeople}p
         </span>
@@ -73,7 +90,9 @@ function BuildingBlock({ building }: { building: AccommodationBuilding }) {
         {building.rooms.map((r) => (
           <li key={r.room} className="border border-foreground">
             <div className="flex items-center justify-between bg-brand text-white px-3 py-1.5">
-              <span className="font-display text-xl font-bold tabular-nums tracking-wider">{r.room}</span>
+              <span className="font-display text-xl font-bold tabular-nums tracking-wider">
+                {r.room}
+              </span>
               <span className="inline-flex items-center gap-1 font-display text-[11px] tracking-widest uppercase opacity-90">
                 <Users className="h-3 w-3" />
                 <span className="tabular-nums">{countRealPeople(r.names)}</span>
@@ -81,31 +100,36 @@ function BuildingBlock({ building }: { building: AccommodationBuilding }) {
             </div>
             <ol className="divide-y divide-foreground/15 border-t border-foreground">
               {[...r.names]
-                .sort((a, b) => Number(a.startsWith('타팀')) - Number(b.startsWith('타팀')))
+                .sort(
+                  (a, b) =>
+                    Number(a.startsWith("타팀")) - Number(b.startsWith("타팀")),
+                )
                 .map((name, i) => {
-                  const isPlaceholder = name.startsWith('타팀')
+                  const isPlaceholder = name.startsWith("타팀");
                   return (
                     <li
                       key={i}
-                      className={`flex items-center gap-3 px-3 py-2 ${isPlaceholder ? 'bg-muted/40' : ''}`}
+                      className={`flex items-center gap-3 px-3 py-2 ${isPlaceholder ? "bg-muted/40" : ""}`}
                     >
                       <span className="font-display text-[10px] tracking-widest text-muted-foreground tabular-nums w-4">
-                        {String(i + 1).padStart(2, '0')}
+                        {String(i + 1).padStart(2, "0")}
                       </span>
                       <span
                         className={`text-[15px] truncate flex-1 ${
-                          isPlaceholder ? 'italic text-muted-foreground' : 'font-medium'
+                          isPlaceholder
+                            ? "italic text-muted-foreground"
+                            : "font-medium"
                         }`}
                       >
                         {name}
                       </span>
                     </li>
-                  )
+                  );
                 })}
             </ol>
           </li>
         ))}
       </ul>
     </section>
-  )
+  );
 }
