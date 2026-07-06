@@ -123,8 +123,18 @@ CREATE TABLE IF NOT EXISTS accommodations (
     building   VARCHAR(20) NOT NULL,  -- '[신관]' | '[1관]' | '[AJ]'
     room       INT         NOT NULL,
     name       VARCHAR(50) NOT NULL, -- 인원명, '타팀 1명' 등 placeholder 포함(동일 방 내 중복 가능)
+    number     INT,                  -- 인원 고유번호(0198 등, 0-padding 없이 저장), '타팀 1명' 등 placeholder는 NULL
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE accommodations ADD COLUMN IF NOT EXISTS number INT;
+
+-- scope: church.team_type 파생값 (0 = YOUTH, 1 = ADULT)
+ALTER TABLE accommodations ADD COLUMN IF NOT EXISTS scope SMALLINT;
+
 CREATE INDEX IF NOT EXISTS idx_accommodations_church        ON accommodations (church_id);
 CREATE INDEX IF NOT EXISTS idx_accommodations_church_room    ON accommodations (church_id, building, room);
+
+-- number 컬럼 부분 유니크 인덱스 (전역 유일, placeholder 행의 NULL은 제외)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accommodations_number
+    ON accommodations (number) WHERE number IS NOT NULL;
