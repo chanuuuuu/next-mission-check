@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Hash } from "lucide-react";
 import { encodeAccommodationNumberParam } from "@/lib/encode";
 
-export default function SearchAccommodationPage() {
+function SearchAccommodationForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [value, setValue] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    searchParams.get("error") === "notfound"
+      ? "등록되지 않은 명찰 번호입니다."
+      : "",
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -27,8 +32,8 @@ export default function SearchAccommodationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted flex flex-col">
-      <div className="px-6 pt-4">
+    <div className="min-h-screen bg-muted relative">
+      <div className="absolute top-0 left-0 px-6 pt-4">
         <Link
           href="/"
           className="font-display text-sm font-bold tracking-tight text-muted-foreground hover:text-foreground transition-colors"
@@ -36,7 +41,7 @@ export default function SearchAccommodationPage() {
           ← 처음으로
         </Link>
       </div>
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <div className="min-h-screen flex items-center justify-center px-6 py-12">
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-sm bg-background border border-foreground p-8"
@@ -85,5 +90,13 @@ export default function SearchAccommodationPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function SearchAccommodationPage() {
+  return (
+    <Suspense fallback={null}>
+      <SearchAccommodationForm />
+    </Suspense>
   );
 }

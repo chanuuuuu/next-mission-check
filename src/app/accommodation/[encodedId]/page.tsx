@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { AccommodationClient } from './AccommodationClient'
 import { decodeChurchParam, decodeAccommodationNumberParam } from '@/lib/encode'
 import { CHURCH_NAMES } from '@/lib/churches'
@@ -15,13 +16,7 @@ export default async function AccommodationPage({ params }: Props) {
     const result = await getAccommodationByNumber(number)
 
     if (!result) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center px-6">
-            <h1 className="text-2xl font-bold">등록되지 않은 번호입니다.</h1>
-          </div>
-        </div>
-      )
+      redirect('/search-accommodation?error=notfound')
     }
 
     return (
