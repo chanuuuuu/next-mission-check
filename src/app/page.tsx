@@ -13,6 +13,12 @@ const LINKS = [
     sub: "02",
     desc: "교회 선택 → 좌석 확인",
   },
+  {
+    href: "/search-accommodation",
+    label: "번호로 숙소 조회",
+    sub: "03",
+    desc: "본인 번호 입력 → 숙소 확인",
+  },
 ] as const;
 
 export default function Home() {
