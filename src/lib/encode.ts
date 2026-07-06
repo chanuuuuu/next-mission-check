@@ -46,6 +46,26 @@ export function decodeCheckinParam(encoded: string): number | null {
   }
 }
 
+export function encodeAccommodationLookupParam(name: string, id: number, number: number): string {
+  return toBase64url(`${name}:${id}:${number}:n`)
+}
+
+export function decodeAccommodationLookupParam(
+  encoded: string
+): { churchId: number; number: number } | null {
+  try {
+    const decoded = fromBase64url(encoded)
+    const parts = decoded.split(':')
+    if (parts.length < 4 || parts[parts.length - 1] !== 'n') return null
+    const number = parseInt(parts[parts.length - 2], 10)
+    const churchId = parseInt(parts[parts.length - 3], 10)
+    if (isNaN(number) || isNaN(churchId)) return null
+    return { churchId, number }
+  } catch {
+    return null
+  }
+}
+
 const QR_HASH = 'sc'
 
 export function encodeQRPayload(churchId: number): string {
