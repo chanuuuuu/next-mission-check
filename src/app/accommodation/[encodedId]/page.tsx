@@ -1,7 +1,7 @@
 import { AccommodationClient } from './AccommodationClient'
-import { AccommodationBuilding } from '@/types'
-import { decodeChurchParam, decodeAccommodationLookupParam } from '@/lib/encode'
+import { decodeChurchParam, decodeAccommodationNumberParam } from '@/lib/encode'
 import { CHURCH_NAMES } from '@/lib/churches'
+import { getAccommodationBuildings, getAccommodationByNumber } from '@/lib/accommodations'
 
 interface Props {
   params: Promise<{ encodedId: string }>
@@ -9,8 +9,32 @@ interface Props {
 
 export default async function AccommodationPage({ params }: Props) {
   const { encodedId } = await params
-  const lookup = decodeAccommodationLookupParam(encodedId)
-  const churchId = lookup?.churchId ?? decodeChurchParam(encodedId)
+  const number = decodeAccommodationNumberParam(encodedId)
+
+  if (number !== null) {
+    const result = await getAccommodationByNumber(number)
+
+    if (!result) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center px-6">
+            <h1 className="text-2xl font-bold">등록되지 않은 번호입니다.</h1>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <AccommodationClient
+        churchName={CHURCH_NAMES[result.churchId] ?? ''}
+        buildings={result.buildings}
+        backHref="/search-accommodation"
+        backLabel="번호 다시 입력"
+      />
+    )
+  }
+
+  const churchId = decodeChurchParam(encodedId)
 
   if (!churchId) {
     return (
@@ -34,20 +58,14 @@ export default async function AccommodationPage({ params }: Props) {
     )
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-  const qs = lookup ? `?number=${lookup.number}` : ''
-  const res = await fetch(`${baseUrl}/api/accommodations/${churchId}${qs}`, { cache: 'no-store' })
-  const buildings: AccommodationBuilding[] = await res.json()
-
-  const backHref = lookup ? '/search-accommodation' : '/accommodation'
-  const backLabel = lookup ? '번호 다시 입력' : '교회 다시 선택'
+  const buildings = await getAccommodationBuildings(churchId)
 
   return (
     <AccommodationClient
       churchName={churchName}
       buildings={buildings}
-      backHref={backHref}
-      backLabel={backLabel}
+      backHref="/accommodation"
+      backLabel="교회 다시 선택"
     />
   )
 }
