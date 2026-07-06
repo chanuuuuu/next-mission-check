@@ -340,8 +340,6 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
   }
 
   function clearAssignments() {
-    setAlgoResults([]);
-    setJinAlgoResults([]);
     setHighlightTeamId(null);
     setReadyJin(null);
     setHoverPreview(null);
@@ -352,13 +350,45 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
     setIsPreviousView(Object.keys(a).length > 0);
 
     if (m === 'jin') {
-      const placedSynIds = new Set(Object.values(a));
+      // Rebuild jinAlgoResults/algoResults from the restored assignments so a subsequent
+      // manual placement can find each jin's full seat set when resolving overlaps
+      // (see handleRowClick — it looks up conflicting jins via jinAlgoResults).
+      const seatsByJinId = new Map<number, string[]>();
+      for (const [key, synId] of Object.entries(a)) {
+        if (!seatsByJinId.has(synId)) seatsByJinId.set(synId, []);
+        seatsByJinId.get(synId)!.push(key);
+      }
+
+      const reconstructedJinResults: JinAlgoResult[] = [];
+      const reconstructedAlgoResults: AlgoResult[] = [];
+      for (const [synId, seatKeys] of seatsByJinId.entries()) {
+        const unit = jinUnits.find((u) => u.syntheticId === synId);
+        if (!unit) continue;
+        const parts = seatKeys[0].split('_');
+        const block = parts[1];
+        const floor = parts[0] === '1F' ? 1 : 2;
+        reconstructedJinResults.push({
+          syntheticId: synId,
+          jinName: unit.jinName,
+          memberTeamIds: unit.memberTeamIds,
+          seatKeys,
+          block,
+          floor,
+          earnedScore: 0,
+        });
+        reconstructedAlgoResults.push({ teamId: synId, seatKeys, block, floor, earnedScore: 0 });
+      }
+      setJinAlgoResults(reconstructedJinResults);
+      setAlgoResults(reconstructedAlgoResults);
+
       const statuses = new Map<string, JinPlacementStatus>();
       for (const u of jinUnits) {
-        statuses.set(u.jinName, placedSynIds.has(u.syntheticId) ? 'placed' : 'unplaced');
+        statuses.set(u.jinName, seatsByJinId.has(u.syntheticId) ? 'placed' : 'unplaced');
       }
       setJinStatuses(statuses);
     } else {
+      setAlgoResults([]);
+      setJinAlgoResults([]);
       setJinStatuses(new Map());
     }
 
