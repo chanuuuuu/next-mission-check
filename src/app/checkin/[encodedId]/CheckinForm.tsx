@@ -14,13 +14,14 @@ export function CheckinForm({ church, phaseCode }: Props) {
   const router = useRouter();
   const [allArrived, setAllArrived] = useState(true);
   const [headcount, setHeadcount] = useState("");
+  const [breakfastCount, setBreakfastCount] = useState("");
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
   const isMorning = phaseCode.endsWith("A");
   const phaseLabel = `${phaseCode[0]}일차 ${isMorning ? "오전" : "오후"}`;
-  const canSubmit = Number(headcount) >= 1;
+  const canSubmit = Number(headcount) >= 1 && Number(breakfastCount) >= 1;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -32,6 +33,7 @@ export function CheckinForm({ church, phaseCode }: Props) {
           phase_code: phaseCode,
           is_all_arrived: allArrived,
           total_count: Number(headcount),
+          breakfast_count: Number(breakfastCount),
           report_notes: note || null,
         }),
       }).then(async (r) => {
@@ -85,7 +87,8 @@ export function CheckinForm({ church, phaseCode }: Props) {
             label="도착 여부"
             value={allArrived ? "전원 도착" : "일부 도착"}
           />
-          <Row label="인원 수" value={`${headcount || 0}명`} />
+          <Row label="저녁 인원" value={`${headcount || 0}명`} />
+          <Row label="아침 인원" value={`${breakfastCount || 0}명`} />
           {note && <Row label="추가 사항" value={note} />}
         </div>
       </div>
@@ -185,8 +188,8 @@ export function CheckinForm({ church, phaseCode }: Props) {
           <div className="space-y-3">
             <FieldLabel
               index="B"
-              title="현재 인원 수"
-              hint="도착하신 인원을 숫자로 입력하세요."
+              title="저녁 식사 인원 수"
+              hint="현재 도착 및 개별 도착 예정인 저녁식사 인원 수를 숫자로 입력하세요."
             />
             <div className="flex items-baseline gap-3 border-b-2 border-foreground w-48">
               <input
@@ -210,6 +213,30 @@ export function CheckinForm({ church, phaseCode }: Props) {
           <div className="space-y-3">
             <FieldLabel
               index="C"
+              title="내일 아침 식사 인원 수"
+              hint="현재 도착 및 개별 도착 예정인 익일 아침식사를 할 인원 수를 숫자로 입력하세요."
+            />
+            <div className="flex items-baseline gap-3 border-b-2 border-foreground w-48">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={breakfastCount}
+                onChange={(e) =>
+                  setBreakfastCount(e.target.value.replace(/[^0-9]/g, ""))
+                }
+                placeholder="0"
+                className="flex-1 min-w-0 py-2 text-5xl leading-none font-display font-bold outline-none bg-transparent placeholder:text-muted-foreground/30"
+              />
+              <span className="font-display text-xl text-muted-foreground pb-2">
+                명
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <FieldLabel
+              index="D"
               title="추가 보고 사항"
               hint="필요 시 자유롭게 작성해 주세요."
             />

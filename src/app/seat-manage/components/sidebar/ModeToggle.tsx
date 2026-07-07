@@ -10,8 +10,10 @@ export default function ModeToggle({ mode, onSwitch }: ModeToggleProps) {
     <div className="grid grid-cols-2 border border-foreground">
       <button
         onClick={() => onSwitch('team')}
+        disabled
+        title="팀별 배치 기능은 비활성화되었습니다"
         className={cn(
-          "font-display font-bold text-xs py-2 tracking-wider transition-colors",
+          "font-display font-bold text-xs py-2 tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed",
           mode === 'team' ? "bg-foreground text-background" : "hover:bg-foreground/10",
         )}
       >

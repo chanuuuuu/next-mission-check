@@ -16,7 +16,9 @@ function ManualRow({
   isCheckedIn: boolean
 }) {
   const queryClient = useQueryClient()
-  const [count, setCount] = useState('')
+  const [dinnerCount, setDinnerCount] = useState('')
+  const [breakfastCount, setBreakfastCount] = useState('')
+  const [note, setNote] = useState('')
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -27,18 +29,22 @@ function ManualRow({
           church_id: church.id,
           phase_code: phaseCode,
           is_all_arrived: true,
-          total_count: Number(count) || 0,
+          total_count: Number(dinnerCount) || 0,
+          breakfast_count: Number(breakfastCount) || 0,
+          report_notes: note.trim() || null,
         }),
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checkins'] })
-      setCount('')
+      setDinnerCount('')
+      setBreakfastCount('')
+      setNote('')
     },
   })
 
   return (
-    <div className="border border-foreground/15 p-3 flex items-center gap-3">
-      <div className="flex-1 min-w-0">
+    <div className="border border-foreground/15 p-3 flex items-center gap-2 flex-wrap">
+      <div className="flex-1 min-w-[120px]">
         <p className="text-sm font-medium truncate">{church.name}</p>
         {isCheckedIn && (
           <p className="text-[10px] font-display font-bold tracking-widest uppercase text-brand mt-0.5">
@@ -48,11 +54,27 @@ function ManualRow({
       </div>
       <input
         type="number"
-        value={count}
-        onChange={(e) => setCount(e.target.value.replace(/\D/g, ''))}
-        placeholder="인원"
+        value={dinnerCount}
+        onChange={(e) => setDinnerCount(e.target.value.replace(/\D/g, ''))}
+        placeholder="저녁"
         disabled={isCheckedIn}
-        className="w-14 border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
+        className="w-16 border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
+      />
+      <input
+        type="number"
+        value={breakfastCount}
+        onChange={(e) => setBreakfastCount(e.target.value.replace(/\D/g, ''))}
+        placeholder="아침"
+        disabled={isCheckedIn}
+        className="w-16 border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
+      />
+      <input
+        type="text"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="추가 보고 사항"
+        disabled={isCheckedIn}
+        className="flex-1 min-w-[160px] border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
       />
       <button
         onClick={() => mutation.mutate()}
@@ -67,8 +89,6 @@ function ManualRow({
 
 export default function AdminPage() {
   const queryClient = useQueryClient()
-  const [newChurch, setNewChurch] = useState('')
-  const [newAddress, setNewAddress] = useState('')
 
   const { data: phaseData } = useQuery<{ phase: PhaseCode; label: string }>({
     queryKey: ['phase'],
@@ -101,20 +121,6 @@ export default function AdminPage() {
     },
   })
 
-  const addChurchMutation = useMutation({
-    mutationFn: () =>
-      fetch('/api/churches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newChurch, address: newAddress }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['churches'] })
-      setNewChurch('')
-      setNewAddress('')
-    },
-  })
-
   const checkedInIds = new Set(checkins.map((c) => c.church_id))
 
   return (
@@ -141,7 +147,7 @@ export default function AdminPage() {
       <main className="px-6 md:px-12 py-8 md:py-12 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {/* Phase 전환 */}
-        <section className="lg:col-span-4 bg-background border border-foreground p-6 md:p-8">
+        <section className="lg:col-span-3 bg-background border border-foreground p-6 md:p-8">
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em]">Phase 전환</h2>
             <span className="text-[10px] font-display font-bold tracking-widest uppercase text-muted-foreground">
@@ -171,52 +177,8 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* 교회 추가 */}
-        <section className="lg:col-span-4 bg-background border border-foreground p-6 md:p-8">
-          <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em] mb-6">교회 추가</h2>
-          <form
-            onSubmit={(e) => { e.preventDefault(); if (newChurch.trim()) addChurchMutation.mutate() }}
-            className="space-y-4"
-          >
-            <div>
-              <label className="block text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                교회명
-              </label>
-              <input
-                type="text"
-                value={newChurch}
-                onChange={(e) => setNewChurch(e.target.value)}
-                placeholder="예: 새벽빛교회"
-                className="mt-2 w-full border-2 border-foreground px-3 py-3 outline-none bg-background text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                주소 (선택)
-              </label>
-              <input
-                type="text"
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                placeholder="예: 서울시 강남구"
-                className="mt-2 w-full border border-foreground/30 px-3 py-3 outline-none bg-background text-sm focus:border-foreground"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!newChurch.trim() || addChurchMutation.isPending}
-              className="w-full py-4 bg-foreground text-background font-display font-bold uppercase tracking-widest text-xs hover:bg-brand transition-colors disabled:opacity-40"
-            >
-              {addChurchMutation.isPending ? '추가 중...' : '교회 추가'}
-            </button>
-            {addChurchMutation.isError && (
-              <p className="text-xs text-destructive font-bold">추가 중 오류가 발생했습니다.</p>
-            )}
-          </form>
-        </section>
-
         {/* 수동 체크인 */}
-        <section className="lg:col-span-4 bg-background border border-foreground p-6 md:p-8">
+        <section className="lg:col-span-9 bg-background border border-foreground p-6 md:p-8">
           <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em] mb-6">수동 체크인</h2>
           <div className="flex-1 space-y-2 overflow-y-auto max-h-[400px]">
             {churches.map((church) => (
@@ -242,7 +204,7 @@ export default function AdminPage() {
             <table className="w-full text-left">
               <thead className="bg-muted/50">
                 <tr>
-                  {['교회명', '상태', '인원', '체크인 시각'].map((h) => (
+                  {['교회명', '상태', '저녁 인원', '아침 인원', '추가 보고 사항', '체크인 시각'].map((h) => (
                     <th key={h} className="px-6 md:px-8 py-4 text-[10px] font-display font-bold tracking-widest uppercase text-muted-foreground">
                       {h}
                     </th>
@@ -264,6 +226,12 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 md:px-8 py-4">
                         {checkin ? `${checkin.total_count}명` : '—'}
+                      </td>
+                      <td className="px-6 md:px-8 py-4">
+                        {checkin ? `${checkin.breakfast_count}명` : '—'}
+                      </td>
+                      <td className="px-6 md:px-8 py-4 text-muted-foreground max-w-[240px] truncate">
+                        {checkin?.report_notes || '—'}
                       </td>
                       <td className="px-6 md:px-8 py-4 text-muted-foreground">
                         {checkin

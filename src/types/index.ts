@@ -24,7 +24,9 @@ export interface Checkin {
   phase_code: string
   is_all_arrived: boolean
   total_count: number
+  breakfast_count: number
   report_notes: string | null
+  meal_called: boolean
   dynamic_questions: Record<string, unknown> | null
   checked_in_at: string
   updated_at: string

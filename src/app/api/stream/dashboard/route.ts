@@ -14,7 +14,13 @@ export async function GET(request: Request) {
 
       let initialized = false
       let lastCheckedAt: string | null = null
+      let lastUpdatedAt: string | null = null
       let lastPhase: string | null = null
+
+      const normalizeTs = (raw: unknown): string | null =>
+        raw instanceof Date
+          ? raw.toISOString()
+          : raw != null ? String(raw) : null
 
       const tick = async () => {
         try {
@@ -24,26 +30,28 @@ export async function GET(request: Request) {
           const currentPhase = settings?.value ?? '1A'
 
           const [latest] = await sql`
-            SELECT checked_in_at FROM checkins
+            SELECT
+              MAX(checked_in_at) AS checked_in_at,
+              MAX(updated_at)    AS updated_at
+            FROM checkins
             WHERE phase_code = ${currentPhase}
-            ORDER BY checked_in_at DESC
-            LIMIT 1
           `
-          const rawTs = latest?.checked_in_at
-          const currentCheckedAt = rawTs instanceof Date
-            ? rawTs.toISOString()
-            : rawTs != null ? String(rawTs) : null
+          const currentCheckedAt = normalizeTs(latest?.checked_in_at)
+          // meal_called 토글 등 UPDATE 반영 (PATCH가 updated_at 갱신)
+          const currentUpdatedAt = normalizeTs(latest?.updated_at)
 
           if (initialized) {
             const phaseChanged = lastPhase !== currentPhase
             const newCheckin = currentCheckedAt !== lastCheckedAt
-            if (phaseChanged || newCheckin) {
+            const rowUpdated = currentUpdatedAt !== lastUpdatedAt
+            if (phaseChanged || newCheckin || rowUpdated) {
               controller.enqueue(encode('REFRESH'))
             }
           }
 
           lastPhase = currentPhase
           lastCheckedAt = currentCheckedAt
+          lastUpdatedAt = currentUpdatedAt
           initialized = true
         } catch {
           clearInterval(timer)

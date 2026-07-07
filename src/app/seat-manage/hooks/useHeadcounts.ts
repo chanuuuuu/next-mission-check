@@ -4,7 +4,7 @@ import type { Notice } from "../types";
 
 export function useHeadcounts(initialTeams: Team[], notify: (n: Notice) => void) {
   const [teams, setTeams] = useState<Team[]>(initialTeams);
-  const [selectedDay, setSelectedDayState] = useState<'base' | DayKey>('base');
+  const [selectedDay, setSelectedDayState] = useState<'base' | DayKey>('thu');
   const [isDirtyHeadcount, setIsDirtyHeadcount] = useState(false);
 
   function getEffectiveHeadcount(team: Team): number {
