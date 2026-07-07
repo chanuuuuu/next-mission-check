@@ -53,7 +53,7 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
   const [newDelta, setNewDelta] = useState("");
 
   // Day-specific headcount
-  const [selectedDay, setSelectedDay] = useState<'base' | DayKey>('base');
+  const [selectedDay, setSelectedDay] = useState<'base' | DayKey>('thu');
 
   // Jin placement state
   const [jinStatuses, setJinStatuses] = useState<Map<string, JinPlacementStatus>>(new Map());
@@ -700,8 +700,10 @@ export default function AdminClient({ initialTeams, savedAssignments, savedJinAs
           <div className="grid grid-cols-2 border border-foreground">
             <button
               onClick={() => switchMode('team')}
+              disabled
+              title="팀별 배치 기능은 비활성화되었습니다"
               className={cn(
-                "font-display font-bold text-xs py-2 tracking-wider transition-colors",
+                "font-display font-bold text-xs py-2 tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed",
                 mode === 'team' ? "bg-foreground text-background" : "hover:bg-foreground/10",
               )}
             >

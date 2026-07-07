@@ -33,7 +33,7 @@ export default async function SeatingPage() {
   ])
 
   const [latestPhase] = phases
-  const savedMode = latestPhase?.assignment_mode ?? 'team'
+  const savedMode = latestPhase?.assignment_mode ?? 'jin'
 
   let savedAssignments: Record<string, number> = {}
   let savedJinAssignments: Record<string, string> = {}
