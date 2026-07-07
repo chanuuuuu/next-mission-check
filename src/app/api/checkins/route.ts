@@ -12,8 +12,8 @@ export async function GET(request: Request) {
   const rows = (await sql`
     SELECT
       ch.id, ch.church_id, ch.phase_code,
-      ch.is_all_arrived, ch.total_count,
-      ch.report_notes, ch.dynamic_questions,
+      ch.is_all_arrived, ch.total_count, ch.breakfast_count,
+      ch.report_notes, ch.meal_called, ch.dynamic_questions,
       ch.checked_in_at, ch.updated_at
     FROM checkins ch
     WHERE ch.phase_code = ${phase}
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { church_id, phase_code, is_all_arrived, total_count, report_notes, dynamic_questions } = body
+  const { church_id, phase_code, is_all_arrived, total_count, breakfast_count, report_notes, dynamic_questions } = body
 
   if (!church_id || !phase_code) {
     return Response.json({ error: 'church_id, phase_code는 필수입니다.' }, { status: 400 })
@@ -34,10 +34,10 @@ export async function POST(request: Request) {
   try {
     const rows = (await sql`
       INSERT INTO checkins
-        (church_id, phase_code, is_all_arrived, total_count, report_notes, dynamic_questions)
+        (church_id, phase_code, is_all_arrived, total_count, breakfast_count, report_notes, dynamic_questions)
       VALUES
         (${church_id}, ${phase_code}, ${is_all_arrived ?? false},
-         ${total_count ?? 0}, ${report_notes ?? null}, ${dynamic_questions ?? null})
+         ${total_count ?? 0}, ${breakfast_count ?? 0}, ${report_notes ?? null}, ${dynamic_questions ?? null})
       RETURNING *
     `) as Checkin[]
 
@@ -54,6 +54,28 @@ export async function POST(request: Request) {
     }
     throw err
   }
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json()
+  const { church_id, phase_code, meal_called } = body
+
+  if (!church_id || !phase_code) {
+    return Response.json({ error: 'church_id, phase_code는 필수입니다.' }, { status: 400 })
+  }
+
+  const rows = (await sql`
+    UPDATE checkins
+    SET meal_called = ${meal_called ?? false}, updated_at = now()
+    WHERE church_id = ${church_id} AND phase_code = ${phase_code}
+    RETURNING *
+  `) as Checkin[]
+
+  if (rows.length === 0) {
+    return Response.json({ error: '해당 체크인을 찾을 수 없습니다.' }, { status: 404 })
+  }
+
+  return Response.json(rows[0])
 }
 
 function isUniqueViolation(err: unknown): boolean {

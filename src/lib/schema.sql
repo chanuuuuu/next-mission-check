@@ -20,8 +20,10 @@ CREATE TABLE IF NOT EXISTS checkins (
     church_id        INTEGER NOT NULL REFERENCES churches(id) ON DELETE CASCADE,
     phase_code       VARCHAR(10) NOT NULL,
     is_all_arrived   BOOLEAN NOT NULL DEFAULT FALSE,
-    total_count      INTEGER NOT NULL DEFAULT 0,
+    total_count      INTEGER NOT NULL DEFAULT 0,  -- 저녁 식사 인원 수
+    breakfast_count  INTEGER NOT NULL DEFAULT 0,  -- 내일 아침 식사 인원 수
     report_notes     TEXT,
+    meal_called      BOOLEAN NOT NULL DEFAULT FALSE,  -- 식사 호출 완료 여부
     dynamic_questions JSONB,
     checked_in_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -60,6 +62,14 @@ CREATE INDEX IF NOT EXISTS idx_checkins_phase_church
 
 CREATE INDEX IF NOT EXISTS idx_checkins_checked_at
     ON checkins (phase_code, checked_in_at ASC);
+
+-- ============================================================
+-- 저녁/아침 식사 인원 분리 + 식사 호출 완료 상태
+-- 기존 DB에 적용: 아래 ALTER TABLE 실행
+-- 신규 설치 시에는 checkins CREATE TABLE에 이미 포함됨
+-- ============================================================
+ALTER TABLE checkins ADD COLUMN IF NOT EXISTS breakfast_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE checkins ADD COLUMN IF NOT EXISTS meal_called BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ============================================================
 -- 좌석 자동 배치 시스템 DDL

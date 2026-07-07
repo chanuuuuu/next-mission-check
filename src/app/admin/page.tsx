@@ -16,7 +16,9 @@ function ManualRow({
   isCheckedIn: boolean
 }) {
   const queryClient = useQueryClient()
-  const [count, setCount] = useState('')
+  const [dinnerCount, setDinnerCount] = useState('')
+  const [breakfastCount, setBreakfastCount] = useState('')
+  const [note, setNote] = useState('')
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -27,18 +29,22 @@ function ManualRow({
           church_id: church.id,
           phase_code: phaseCode,
           is_all_arrived: true,
-          total_count: Number(count) || 0,
+          total_count: Number(dinnerCount) || 0,
+          breakfast_count: Number(breakfastCount) || 0,
+          report_notes: note.trim() || null,
         }),
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checkins'] })
-      setCount('')
+      setDinnerCount('')
+      setBreakfastCount('')
+      setNote('')
     },
   })
 
   return (
-    <div className="border border-foreground/15 p-3 flex items-center gap-3">
-      <div className="flex-1 min-w-0">
+    <div className="border border-foreground/15 p-3 flex items-center gap-2 flex-wrap">
+      <div className="flex-1 min-w-[120px]">
         <p className="text-sm font-medium truncate">{church.name}</p>
         {isCheckedIn && (
           <p className="text-[10px] font-display font-bold tracking-widest uppercase text-brand mt-0.5">
@@ -48,11 +54,27 @@ function ManualRow({
       </div>
       <input
         type="number"
-        value={count}
-        onChange={(e) => setCount(e.target.value.replace(/\D/g, ''))}
-        placeholder="인원"
+        value={dinnerCount}
+        onChange={(e) => setDinnerCount(e.target.value.replace(/\D/g, ''))}
+        placeholder="저녁"
         disabled={isCheckedIn}
-        className="w-14 border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
+        className="w-16 border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
+      />
+      <input
+        type="number"
+        value={breakfastCount}
+        onChange={(e) => setBreakfastCount(e.target.value.replace(/\D/g, ''))}
+        placeholder="아침"
+        disabled={isCheckedIn}
+        className="w-16 border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
+      />
+      <input
+        type="text"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="추가 보고 사항"
+        disabled={isCheckedIn}
+        className="flex-1 min-w-[160px] border border-foreground/20 px-2 py-1.5 text-sm outline-none focus:border-foreground bg-transparent disabled:opacity-30"
       />
       <button
         onClick={() => mutation.mutate()}
@@ -242,7 +264,7 @@ export default function AdminPage() {
             <table className="w-full text-left">
               <thead className="bg-muted/50">
                 <tr>
-                  {['교회명', '상태', '인원', '체크인 시각'].map((h) => (
+                  {['교회명', '상태', '저녁 인원', '아침 인원', '추가 보고 사항', '체크인 시각'].map((h) => (
                     <th key={h} className="px-6 md:px-8 py-4 text-[10px] font-display font-bold tracking-widest uppercase text-muted-foreground">
                       {h}
                     </th>
@@ -264,6 +286,12 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 md:px-8 py-4">
                         {checkin ? `${checkin.total_count}명` : '—'}
+                      </td>
+                      <td className="px-6 md:px-8 py-4">
+                        {checkin ? `${checkin.breakfast_count}명` : '—'}
+                      </td>
+                      <td className="px-6 md:px-8 py-4 text-muted-foreground max-w-[240px] truncate">
+                        {checkin?.report_notes || '—'}
                       </td>
                       <td className="px-6 md:px-8 py-4 text-muted-foreground">
                         {checkin
