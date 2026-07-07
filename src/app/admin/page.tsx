@@ -89,8 +89,6 @@ function ManualRow({
 
 export default function AdminPage() {
   const queryClient = useQueryClient()
-  const [newChurch, setNewChurch] = useState('')
-  const [newAddress, setNewAddress] = useState('')
 
   const { data: phaseData } = useQuery<{ phase: PhaseCode; label: string }>({
     queryKey: ['phase'],
@@ -123,20 +121,6 @@ export default function AdminPage() {
     },
   })
 
-  const addChurchMutation = useMutation({
-    mutationFn: () =>
-      fetch('/api/churches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newChurch, address: newAddress }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['churches'] })
-      setNewChurch('')
-      setNewAddress('')
-    },
-  })
-
   const checkedInIds = new Set(checkins.map((c) => c.church_id))
 
   return (
@@ -163,7 +147,7 @@ export default function AdminPage() {
       <main className="px-6 md:px-12 py-8 md:py-12 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {/* Phase 전환 */}
-        <section className="lg:col-span-4 bg-background border border-foreground p-6 md:p-8">
+        <section className="lg:col-span-3 bg-background border border-foreground p-6 md:p-8">
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em]">Phase 전환</h2>
             <span className="text-[10px] font-display font-bold tracking-widest uppercase text-muted-foreground">
@@ -193,52 +177,8 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* 교회 추가 */}
-        <section className="lg:col-span-4 bg-background border border-foreground p-6 md:p-8">
-          <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em] mb-6">교회 추가</h2>
-          <form
-            onSubmit={(e) => { e.preventDefault(); if (newChurch.trim()) addChurchMutation.mutate() }}
-            className="space-y-4"
-          >
-            <div>
-              <label className="block text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                교회명
-              </label>
-              <input
-                type="text"
-                value={newChurch}
-                onChange={(e) => setNewChurch(e.target.value)}
-                placeholder="예: 새벽빛교회"
-                className="mt-2 w-full border-2 border-foreground px-3 py-3 outline-none bg-background text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                주소 (선택)
-              </label>
-              <input
-                type="text"
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                placeholder="예: 서울시 강남구"
-                className="mt-2 w-full border border-foreground/30 px-3 py-3 outline-none bg-background text-sm focus:border-foreground"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!newChurch.trim() || addChurchMutation.isPending}
-              className="w-full py-4 bg-foreground text-background font-display font-bold uppercase tracking-widest text-xs hover:bg-brand transition-colors disabled:opacity-40"
-            >
-              {addChurchMutation.isPending ? '추가 중...' : '교회 추가'}
-            </button>
-            {addChurchMutation.isError && (
-              <p className="text-xs text-destructive font-bold">추가 중 오류가 발생했습니다.</p>
-            )}
-          </form>
-        </section>
-
         {/* 수동 체크인 */}
-        <section className="lg:col-span-4 bg-background border border-foreground p-6 md:p-8">
+        <section className="lg:col-span-9 bg-background border border-foreground p-6 md:p-8">
           <h2 className="font-display text-xs font-bold uppercase tracking-[0.2em] mb-6">수동 체크인</h2>
           <div className="flex-1 space-y-2 overflow-y-auto max-h-[400px]">
             {churches.map((church) => (
