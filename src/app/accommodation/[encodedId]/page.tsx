@@ -25,6 +25,8 @@ export default async function AccommodationPage({ params }: Props) {
         buildings={result.buildings}
         backHref="/search-accommodation"
         backLabel="번호 다시 입력"
+        highlightBuilding={result.highlight.building}
+        highlightRoom={result.highlight.room}
       />
     )
   }

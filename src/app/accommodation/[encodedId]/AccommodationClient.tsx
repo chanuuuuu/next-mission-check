@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, Users } from "lucide-react";
 import { AccommodationBuilding } from "@/types";
@@ -9,6 +10,8 @@ interface Props {
   buildings: AccommodationBuilding[];
   backHref: string;
   backLabel: string;
+  highlightBuilding?: string;
+  highlightRoom?: number;
 }
 
 function countRealPeople(names: string[]) {
@@ -20,6 +23,8 @@ export function AccommodationClient({
   buildings,
   backHref,
   backLabel,
+  highlightBuilding,
+  highlightRoom,
 }: Props) {
   const totalPeople = buildings.reduce(
     (sum, b) =>
@@ -60,7 +65,12 @@ export function AccommodationClient({
             </p>
           ) : (
             buildings.map((b) => (
-              <BuildingBlock key={b.building} building={b} />
+              <BuildingBlock
+                key={b.building}
+                building={b}
+                highlightBuilding={highlightBuilding}
+                highlightRoom={highlightRoom}
+              />
             ))
           )}
         </div>
@@ -69,11 +79,25 @@ export function AccommodationClient({
   );
 }
 
-function BuildingBlock({ building }: { building: AccommodationBuilding }) {
+function BuildingBlock({
+  building,
+  highlightBuilding,
+  highlightRoom,
+}: {
+  building: AccommodationBuilding;
+  highlightBuilding?: string;
+  highlightRoom?: number;
+}) {
   const totalPeople = building.rooms.reduce(
     (s, r) => s + countRealPeople(r.names),
     0,
   );
+
+  const selfRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    selfRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
 
   return (
     <section>
@@ -87,8 +111,19 @@ function BuildingBlock({ building }: { building: AccommodationBuilding }) {
       </div>
 
       <ul className="space-y-2.5">
-        {building.rooms.map((r) => (
-          <li key={r.room} className="border border-foreground">
+        {building.rooms.map((r) => {
+          const isSelf =
+            building.building === highlightBuilding && r.room === highlightRoom;
+          return (
+          <li
+            key={r.room}
+            ref={isSelf ? selfRef : undefined}
+            className={
+              isSelf
+                ? "border-4 border-brand scale-[1.04] relative z-10 shadow-[0_4px_16px] shadow-brand/25"
+                : "border border-foreground"
+            }
+          >
             <div className="flex items-center justify-between bg-brand text-white px-3 py-1.5">
               <span className="font-display text-xl font-bold tabular-nums tracking-wider">
                 {r.room}
@@ -128,7 +163,8 @@ function BuildingBlock({ building }: { building: AccommodationBuilding }) {
                 })}
             </ol>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   );

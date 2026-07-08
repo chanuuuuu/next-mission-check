@@ -64,13 +64,20 @@ export async function getAccommodationBuildings(
 
 interface AccommodationRowWithChurch extends AccommodationRow {
   church_id: number
+  self_building: string
+  self_room: number
 }
 
 export async function getAccommodationByNumber(
   number: number
-): Promise<{ churchId: number; buildings: AccommodationBuilding[] } | null> {
+): Promise<{
+  churchId: number
+  buildings: AccommodationBuilding[]
+  highlight: { building: string; room: number }
+} | null> {
   const rows = (await sql`
-    SELECT a2.building, a2.room, a2.name, a1.church_id
+    SELECT a2.building, a2.room, a2.name, a1.church_id,
+           a1.building AS self_building, a1.room AS self_room
     FROM accommodations a1
     JOIN accommodations a2
       ON a2.church_id = a1.church_id
@@ -81,5 +88,9 @@ export async function getAccommodationByNumber(
 
   if (rows.length === 0) return null
 
-  return { churchId: rows[0].church_id, buildings: groupIntoBuildings(rows) }
+  return {
+    churchId: rows[0].church_id,
+    buildings: groupIntoBuildings(rows),
+    highlight: { building: rows[0].self_building, room: rows[0].self_room },
+  }
 }
