@@ -21,6 +21,27 @@ export default function ScannerPage() {
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [duplicateToast, setDuplicateToast] = useState<string | null>(null);
   const duplicateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [reportState, setReportState] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
+  const reportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleReportProblem = async () => {
+    if (reportState !== "idle") return;
+    setReportState("sending");
+    await fetch("/api/report-problem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        timestamp: new Date().toISOString(),
+        status,
+        detail: status === "error" ? errorMsg : "",
+      }),
+    }).catch(() => {});
+    setReportState("sent");
+    if (reportTimer.current) clearTimeout(reportTimer.current);
+    reportTimer.current = setTimeout(() => setReportState("idle"), 3000);
+  };
 
   const showDuplicateToast = (name: string) => {
     setDuplicateToast(name);
@@ -31,6 +52,7 @@ export default function ScannerPage() {
   useEffect(() => {
     return () => {
       if (duplicateTimer.current) clearTimeout(duplicateTimer.current);
+      if (reportTimer.current) clearTimeout(reportTimer.current);
     };
   }, []);
 
@@ -218,8 +240,16 @@ export default function ScannerPage() {
               </p>
             </div>
           </div>
-          <button className="bg-brand text-white px-8 py-4 font-display font-bold uppercase tracking-widest text-sm hover:brightness-110 transition-all">
-            문제가 있어요
+          <button
+            onClick={handleReportProblem}
+            disabled={reportState !== "idle"}
+            className="bg-brand text-white px-8 py-4 font-display font-bold uppercase tracking-widest text-sm hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {reportState === "sending"
+              ? "전송 중..."
+              : reportState === "sent"
+                ? "신고 접수됨 ✓"
+                : "문제가 있어요"}
           </button>
         </footer>
       </div>

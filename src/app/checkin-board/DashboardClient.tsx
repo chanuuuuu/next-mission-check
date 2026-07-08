@@ -118,8 +118,8 @@ export function DashboardClient({
 
       {/* 2분할 레이아웃 */}
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-4 border-t border-foreground overflow-hidden">
-        {/* 좌측 — 미도착 (1/4) */}
-        <section className="lg:col-span-1 bg-foreground text-background flex flex-col overflow-hidden">
+        {/* 좌측 — 미도착 (1/4) — 모바일에서는 숨김 */}
+        <section className="lg:col-span-1 bg-foreground text-background hidden lg:flex flex-col overflow-hidden">
           <div className="px-8 md:px-12 pt-8 pb-4 border-b border-background/20 flex-shrink-0">
             <p className="font-display text-sm font-bold tracking-[0.25em] uppercase text-background/50">
               미도착
@@ -216,27 +216,19 @@ function ArrivedRow({
           called ? "opacity-50 bg-brand/5" : ""
         }`}
       >
-        <span className="font-mono text-lg font-bold tabular-nums text-brand w-7 flex-shrink-0">
+        <span className="font-mono text-base lg:text-lg font-bold tabular-nums text-brand w-6 lg:w-7 flex-shrink-0">
           {order}
         </span>
-        <span className="text-lg font-bold font-display">
+        <span className="text-base lg:text-lg font-bold font-display">
           {church?.name ?? "알 수 없음"}
         </span>
         {scope && (
-          <span className="font-display text-[15px] font-bold tracking-wider uppercase border border-brand/30 text-brand px-1.5 py-0.5 flex-shrink-0">
+          <span className="font-display text-[11px] lg:text-[15px] font-bold tracking-wider uppercase border border-brand/30 text-brand px-1.5 py-0.5 flex-shrink-0">
             {scope}
           </span>
         )}
 
-        <span className="ml-auto flex items-center gap-4">
-          {called && (
-            <span className="font-display text-[10px] font-bold tracking-widest uppercase text-brand">
-              식사 호출 완료
-            </span>
-          )}
-          <span className="font-display text-md font-bold tabular-nums text-muted-foreground whitespace-nowrap">
-            저녁 {checkin.total_count} · 아침 {checkin.breakfast_count}
-          </span>
+        <span className="ml-auto flex items-center gap-2 lg:gap-4">
           {hasReport && (
             <button
               type="button"
@@ -253,6 +245,14 @@ function ArrivedRow({
               보고 {isReportOpen ? "▲" : "▼"}
             </button>
           )}
+          {called && (
+            <span className="font-display text-[10px] font-bold tracking-widest uppercase text-brand">
+              식사 호출 완료
+            </span>
+          )}
+          <span className="font-display text-xs lg:text-md font-bold tabular-nums text-muted-foreground whitespace-nowrap">
+            저녁 {checkin.total_count} · 아침 {checkin.breakfast_count}
+          </span>
         </span>
       </div>
 

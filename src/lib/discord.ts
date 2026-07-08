@@ -34,3 +34,36 @@ export async function sendScanErrorAlert(params: {
     // Webhook 실패가 메인 흐름을 막으면 안 됨
   })
 }
+
+export async function sendProblemReport(params: {
+  timestamp?: string
+  status?: string
+  detail?: string
+  userAgent?: string
+}) {
+  if (!WEBHOOK_URL) return
+
+  const ts = params.timestamp ?? new Date().toISOString()
+
+  await fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: '체크인 시스템',
+      embeds: [
+        {
+          title: '🚨 현장 문제 신고',
+          color: 0xff9900,
+          fields: [
+            { name: '발생 시각', value: ts, inline: true },
+            { name: '스캐너 상태', value: params.status ?? '(없음)', inline: true },
+            { name: '상세', value: params.detail || '(없음)', inline: false },
+            { name: '기기', value: params.userAgent || '(없음)', inline: false },
+          ],
+        },
+      ],
+    }),
+  }).catch(() => {
+    // Webhook 실패가 메인 흐름을 막으면 안 됨
+  })
+}
