@@ -17,8 +17,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000",
   ),
-  title: "2026 영동 선교",
-  description: "선교 대원 숙소 조회 페이지",
+  title: "영동 선교 숙소 조회",
+  description: "선교 대원분들의 숙소를 조회할 수 있는 페이지 입니다",
+  openGraph: {
+    title: "영동 선교 숙소 조회",
+    description: "선교 대원분들의 숙소를 조회할 수 있는 페이지 입니다",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
