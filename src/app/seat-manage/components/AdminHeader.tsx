@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Eye } from "lucide-react";
+import { Eye, Home } from "lucide-react";
 
 interface AdminHeaderProps {
   isPreviousView: boolean;
   assignedTotal: number;
   totalSeats: number;
-  mode: 'team' | 'jin';
+  mode: "team" | "jin";
   teamsCount: number;
   jinsCount: number;
   totalDemand: number;
@@ -41,14 +41,21 @@ export default function AdminHeader({
             {assignedTotal} / {totalSeats}석
           </span>
           <span className="border border-foreground px-3 py-1 tracking-widest">
-            {mode === 'jin' ? `${jinsCount}진` : `${teamsCount}팀`} · {totalDemand}명
+            {mode === "jin" ? `${jinsCount}진` : `${teamsCount}팀`} ·{" "}
+            {totalDemand}명
           </span>
           <Link
-            href="/seat"
+            href="/seat-view"
             className="flex items-center gap-1.5 border border-foreground px-3 py-1 hover:bg-foreground hover:text-background transition-colors"
           >
             <Eye className="h-3.5 w-3.5" />
             사용자 화면
+          </Link>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 border border-foreground px-3 py-1.5 hover:bg-foreground hover:text-background transition-colors"
+          >
+            <Home className="h-4 w-3.5" />
           </Link>
         </div>
       </div>

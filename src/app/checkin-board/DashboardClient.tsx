@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { Home } from "lucide-react";
 import { Church, Checkin } from "@/types";
 import { PHASE_LABELS, PhaseCode } from "@/types";
 
@@ -83,8 +81,7 @@ export function DashboardClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...vars, phase_code: phase }),
       }).then((r) => r.json()),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["checkins"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["checkins"] }),
   });
 
   const phaseLabel = PHASE_LABELS[phase as PhaseCode] ?? phase;
@@ -110,6 +107,12 @@ export function DashboardClient({
           <span className="bg-brand text-white px-4 py-2 font-display font-bold text-sm tracking-tight">
             {phaseLabel} · {phase}
           </span>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 border border-foreground px-3 py-2 font-display text-sm hover:bg-foreground hover:text-background transition-colors"
+          >
+            <Home className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </header>
 
