@@ -257,7 +257,7 @@ function ViewSectionView({
               }}
             >
               <span
-                className="font-display font-bold text-xl text-foreground truncate px-1"
+                className="font-display font-bold text-3xl text-foreground whitespace-nowrap px-1"
                 style={{
                   textShadow:
                     "0 0 6px rgba(255,255,255,1), 0 0 12px rgba(255,255,255,0.9), 0 0 20px rgba(255,255,255,0.7)",
@@ -266,7 +266,7 @@ function ViewSectionView({
                 {team.church_name}
               </span>
               <span
-                className="font-display font-bold text-sm text-foreground/70 truncate px-1"
+                className="font-display font-bold text-2xl text-foreground/70 whitespace-nowrap px-1"
                 style={{
                   textShadow:
                     "0 0 6px rgba(255,255,255,1), 0 0 12px rgba(255,255,255,0.9), 0 0 20px rgba(255,255,255,0.7)",
