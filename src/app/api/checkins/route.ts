@@ -64,16 +64,16 @@ export async function PATCH(request: Request) {
     return Response.json({ error: 'church_id, phase_code는 필수입니다.' }, { status: 400 })
   }
 
+  // 저녁 phase는 기존 행 UPDATE 경로, 아침 phase는 소스 행이 없으므로 신규 생성.
+  // 아침 총인원/차감은 직전 저녁 breakfast_count(보드에서 계산)를 사용하므로
+  // 신규 행의 total_count/breakfast_count는 기본 0으로 둔다.
   const rows = (await sql`
-    UPDATE checkins
-    SET meal_called = ${meal_called ?? false}, updated_at = now()
-    WHERE church_id = ${church_id} AND phase_code = ${phase_code}
+    INSERT INTO checkins (church_id, phase_code, meal_called)
+    VALUES (${church_id}, ${phase_code}, ${meal_called ?? false})
+    ON CONFLICT (church_id, phase_code)
+    DO UPDATE SET meal_called = EXCLUDED.meal_called, updated_at = now()
     RETURNING *
   `) as Checkin[]
-
-  if (rows.length === 0) {
-    return Response.json({ error: '해당 체크인을 찾을 수 없습니다.' }, { status: 404 })
-  }
 
   return Response.json(rows[0])
 }
