@@ -1,4 +1,5 @@
 import { DashboardClient } from './DashboardClient'
+import type { Baseline } from './MobileBoard'
 import { Church, Checkin } from '@/types'
 
 async function getData() {
@@ -12,20 +13,25 @@ async function getData() {
   const churches: Church[] = await churchesRes.json()
   const { phase }: { phase: string } = await phaseRes.json()
 
-  const checkinsRes = await fetch(`${baseUrl}/api/checkins?phase=${phase}`, { cache: 'no-store' })
+  const [checkinsRes, baselineRes] = await Promise.all([
+    fetch(`${baseUrl}/api/checkins?phase=${phase}`, { cache: 'no-store' }),
+    fetch(`${baseUrl}/api/teams/baseline?phase=${phase}`, { cache: 'no-store' }),
+  ])
   const checkins: Checkin[] = await checkinsRes.json()
+  const baselines: Baseline[] = await baselineRes.json()
 
-  return { churches, checkins, phase }
+  return { churches, checkins, phase, baselines }
 }
 
 export default async function DashboardPage() {
-  const { churches, checkins, phase } = await getData()
+  const { churches, checkins, phase, baselines } = await getData()
 
   return (
     <DashboardClient
       initialChurches={churches}
       initialCheckins={checkins}
       initialPhase={phase}
+      initialBaselines={baselines}
     />
   )
 }

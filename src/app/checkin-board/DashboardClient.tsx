@@ -6,17 +6,21 @@ import Link from "next/link";
 import { Home } from "lucide-react";
 import { Church, Checkin } from "@/types";
 import { PHASE_LABELS, PhaseCode } from "@/types";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileBoard, type Baseline } from "./MobileBoard";
 
 interface Props {
   initialChurches: Church[];
   initialCheckins: Checkin[];
   initialPhase: string;
+  initialBaselines: Baseline[];
 }
 
 export function DashboardClient({
   initialChurches,
   initialCheckins,
   initialPhase,
+  initialBaselines,
 }: Props) {
   const queryClient = useQueryClient();
 
@@ -41,6 +45,14 @@ export function DashboardClient({
     queryKey: ["checkins", phase],
     queryFn: () => fetch(`/api/checkins?phase=${phase}`).then((r) => r.json()),
     initialData: initialCheckins,
+  });
+
+  // 팀별 기준인원 — phase 내에서 안정적 (체크인 REFRESH 시 재조회 불필요)
+  const { data: baselines = initialBaselines } = useQuery<Baseline[]>({
+    queryKey: ["baseline", phase],
+    queryFn: () =>
+      fetch(`/api/teams/baseline?phase=${phase}`).then((r) => r.json()),
+    initialData: initialBaselines,
   });
 
   useEffect(() => {
@@ -86,6 +98,21 @@ export function DashboardClient({
 
   const phaseLabel = PHASE_LABELS[phase as PhaseCode] ?? phase;
 
+  // 모바일은 별도 컴포넌트로 렌더 (SSR/첫 렌더는 false → desktop, mount 후 전환)
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <MobileBoard
+        churches={churches}
+        checkins={checkins}
+        phase={phase}
+        phaseLabel={phaseLabel}
+        baselines={baselines}
+        onToggleMealCall={(vars) => mealCall.mutate(vars)}
+      />
+    );
+  }
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* 헤더 */}
@@ -128,7 +155,7 @@ export function DashboardClient({
               {pending.length}
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto px-8 md:px-12 py-4 space-y-1">
+          <div className="flex-1 overflow-y-auto px-6 md:px-12 py-4 space-y-1">
             {pending.map((church) => (
               <div
                 key={church.id}
@@ -223,7 +250,7 @@ function ArrivedRow({
           {church?.name ?? "알 수 없음"}
         </span>
         {scope && (
-          <span className="font-display text-[11px] lg:text-[15px] font-bold tracking-wider uppercase border border-brand/30 text-brand px-1.5 py-0.5 flex-shrink-0">
+          <span className="font-display text-[9px] lg:text-[15px] font-bold tracking-wider uppercase border border-brand/30 text-brand px-1.5 py-0.5 flex-shrink-0">
             {scope}
           </span>
         )}
