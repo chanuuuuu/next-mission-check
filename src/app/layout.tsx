@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans } from "next/font/google";
 import { Providers } from "./providers";
+import { InAppBrowserEscape } from "@/components/InAppBrowserEscape";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -37,6 +38,7 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${dmSans.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
+        <InAppBrowserEscape />
         <Providers>{children}</Providers>
       </body>
     </html>
